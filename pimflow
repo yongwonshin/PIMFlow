@@ -1,0 +1,44 @@
+#!/root/miniconda3/bin/python3
+from __future__ import absolute_import
+
+from pim.util import *
+from pim.transform import *
+
+import argparse
+import os
+
+def parse_arguments():
+  parser = argparse.ArgumentParser()
+  parser.add_argument("-m", "--mode", help="mode", choices=["profile", "solve", "run"], required=True)
+  parser.add_argument("-t", "--transform", help="graph transformation", choices=["split", "pipeline"])
+  parser.add_argument("-n", "--network", help="target network", choices=MODEL_LIST, required=True)
+  parser.add_argument("--gpu_only", action="store_true", help="execute only on GPU")
+  parser.add_argument("--conv_only", action="store_true", help="execute only convolution layers")
+  args = parser.parse_args()
+
+  if args.mode == "profile" and (args.transform is None):
+    parser.error("-m/--mode requires -t/--transform")
+
+  return args
+
+def profile(args):
+  if args.transform == "split":
+    os.system(f"cd layerwise && ./profile.sh {args.network}")
+
+def solve(args):
+  pass
+
+def run(args):
+  pass
+
+if __name__ == '__main__':
+  args = parse_arguments()
+
+  if args.mode == "profile":
+    profile(args)
+  elif args.mode == "solve":
+    solve(args)
+  elif args.mode == "run":
+    run(args)
+  else:
+    raise Exception("Must NOT reach here!")

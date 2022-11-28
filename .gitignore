@@ -1,0 +1,11 @@
+pim.egg-info/
+*.pim
+__pycache__/
+pim_codegen
+compile-*.so
+tmp-*/
+*.onnx
+*.csv
+traces-*/
+gpgpu_inst_stats.txt
+traces-*.txt

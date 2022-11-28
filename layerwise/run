@@ -1,0 +1,368 @@
+from subprocess import Popen
+import time
+import argparse
+import multiprocessing
+import os
+import numpy as np
+import csv
+import re
+import pandas as pd
+from pim.util import MODEL_LIST
+from torch.cuda import device_count
+parser = argparse.ArgumentParser()
+group = parser.add_mutually_exclusive_group(required=True)
+group.add_argument("--trace", action="store_true", help="create trace")
+group.add_argument("--simulate", action="store_true", help="simulate")
+group.add_argument("--stat", action="store_true", help="record statistics")
+group.add_argument("--pim", action="store_true", help="pim_cycle")
+group.add_argument("--make_max_shape", action="store_true", help="pim_cycle")
+group.add_argument("--update_pim", action="store_true", help="update pim")
+parser.add_argument("--power", type=bool, default=0)
+parser.add_argument("--gpgpusim_config", help="gpgpusim config (e.g. SM75_RTX2060")
+parser.add_argument("--split_ratio", type=int, default=0)
+parser.add_argument("--device_id", type=int, default=0)
+parser.add_argument("--kernel_launch_latency", type=int, default=10)
+parser.add_argument("--n_channel", type=int, default=16)
+parser.add_argument("--n_gwrite", type=int, default=4)
+parser.add_argument("--model", help="model", choices=MODEL_LIST, required=True)
+args = parser.parse_args()
+
+if args.trace and (args.gpgpusim_config is None):
+  parser.error("--trace requires --gpgpusim_config")
+if args.simulate and (args.gpgpusim_config is None):
+  parser.error("--simulate requires --gpgpusim_config")
+
+NGPU=list(range(device_count()))
+NCPU=multiprocessing.cpu_count()
+
+CONFIG_ALL=[]
+CONFIG_GPU=[]
+CONFIG_PIM=[]
+if args.power:
+  with open(f"{args.model}_max_ratio.onnx_conv.csv") as f:
+    rdr = csv.reader(f)
+    args.split_ratio = -2
+    for line in rdr:
+      CONFIG_ALL.append(line)
+      if "pim" in line[0]:
+        CONFIG_PIM.append(line)
+      else:
+        CONFIG_GPU.append(line)
+elif args.make_max_shape:
+  print('pass')
+else:
+  with open(f"{args.model}_{args.n_channel}.onnx_conv.csv") as f:
+    rdr = csv.reader(f)
+    for line in rdr:
+      CONFIG_ALL.append(line)
+      if "pim" in line[0]:
+        CONFIG_PIM.append(line)
+      else:
+        CONFIG_GPU.append(line)
+
+def get_device(n):
+  return NGPU[n % len(NGPU)]
+
+def make_args(config, n_mem):
+  script = ""
+  if args.trace:
+    script = "trace.sh"
+  elif args.simulate:
+    script = "sim.sh"
+  elif args.stat:
+    script = "stat.sh"
+
+  dev = get_device(n_mem)
+  print(config)
+  a = f"export CUDA_VISIBLE_DEVICES={dev} && export TRACES_PATH=traces-{config[0]} && echo $CUDA_VISIBLE_DEVICES && ./{script} {config[0]} {config[5]} {config[2]} {config[6][1]} {config[6][3]} {config[8]} {config[7][1]} {config[7][3]} {config[10]} {config[9]} {config[11]} {config[3]} {config[4]} {args.gpgpusim_config} {args.split_ratio} {config[12]} {dev} {args.n_channel}"
+  print(a)
+  return a
+
+def trace(configs):
+  procs = []
+  n = 0
+  r = 0
+  for i in range(min(len(NGPU), len(configs))):
+    procs.append(Popen(make_args(configs[i], i), shell=True, start_new_session=True))
+    r += 1
+    time.sleep(3)
+  while True:
+    if n >= len(configs):
+      break
+    for i, p in enumerate(procs):
+      if p is None:
+        continue
+      if p.poll() is not None:
+        if r < len(configs):
+          procs[i] = Popen(make_args(configs[r], i), shell=True, start_new_session=True)
+          r += 1
+        else:
+          procs[i] = None
+        n += 1
+        time.sleep(3)
+    time.sleep(3)
+
+def simulate(configs_gpu,configs_all):
+  procs = []
+  n = 0
+  r = 0
+  for i in range(min(NCPU,len(configs_gpu))):
+    pim_name=""
+    if "added" in configs_gpu[i][0]:
+      for j in range(len(configs_all)):
+        if configs_all[j][0] == configs_gpu[i][0]:
+          pim_name = configs_all[j+1][0]
+    print(configs_gpu[i][0])
+    print(pim_name)
+    procs.append(Popen(make_args(configs_gpu[i],i), shell=True, start_new_session=True))
+    r += 1
+    time.sleep(3)
+
+  while True:
+    if n >= len(configs_gpu):
+      break
+
+    for i, p in enumerate(procs):
+      if p is None:
+        continue
+
+      if p.poll() is not None:
+        if r < len(configs_gpu):
+          if "added" in configs_gpu[r][0]:
+            for j in range(len(configs_all)):
+              if configs_all[j][0] == configs_gpu[r][0]:
+                pim_name = configs_all[j+1][0]
+          print(configs_gpu[i][0])
+          print(pim_name)
+          procs[i] = Popen(make_args(configs_gpu[r],i), shell=True, start_new_session=True)
+        else:
+          procs[i] = None
+
+        r += 1
+        n += 1
+        time.sleep(3)
+
+    time.sleep(3)
+
+def statistics(configs_gpu,configs_pim,configs_all):
+  if args.gpgpusim_config == "SM75_RTX2060" or args.gpgpusim_config== "SM75_RTX2060_S":
+    scale=1.605882353
+  elif args.gpgpusim_config == "SM7_TITANV":
+    scale=1.411764706
+  else:
+    assert False
+
+  pim_cycles = {}
+  for c in range(len(configs_pim)):
+    pname = f"{configs_pim[c][0]}_{args.n_channel}/PIM_trace_partition_{args.n_channel}-{32-args.n_channel}.pim"
+    cyc = os.popen(f"/root/pim-simulator/ramulator /root/pim-simulator/configs/HBM-config.cfg --mode=dram {pname} | grep Cycle").read()
+    cyc = re.sub(r'[^0-9]', '', cyc)
+    pim_cycles[configs_pim[c][0]]=int(cyc) * scale
+    print(pim_cycles[configs_pim[c][0]])
+
+  gpu_cycles = {}
+  for c in range(len(configs_gpu)):
+    fname = f"traces-{configs_gpu[c][0]}.txt"
+    start = 0
+    end = 0
+    with open(fname) as f:
+      lines = f.readlines()
+      for l in lines:
+        if l.find("forward_kernel_cuda_start") != -1:
+          start += 1
+        elif l.find("forward_kernel_cuda_end") != -1:
+          end += 1
+      # if start != 3 or end != 3:
+      #   print(f"SKIP: {fname}")
+      #   continue
+
+      runs = []
+      for i, l in enumerate(lines):
+        if l.find("forward_kernel_cuda_end") != -1:
+          runs.append(int(lines[i-1].split("=")[1]))
+      # assert len(runs) == 3
+      for i in range(len(runs)-1, 0, -1):
+        runs[i] -= runs[i-1]
+      for i in range(len(runs)):
+        runs[i] -= args.kernel_launch_latency * 2
+      gpu_cycles[configs_gpu[c][0]]=int(np.median(runs))
+  with open(f'{args.model}_split{args.split_ratio}_{args.n_channel}.csv','w', newline='') as f:
+    wr = csv.writer(f)
+    wr.writerow(['kernel_name','I_c','O_c','H','W','kernel_size','pads','strides','group','dilations','bias','activation','GPU cycles','PIM cycles'])
+    for c in range(len(configs_all)):
+      if "pim"in configs_all[c][0]:
+        continue
+      elif "added" in configs_all[c][0]:
+        wr.writerow([configs_all[c][0],configs_all[c][2],configs_all[c][5],configs_all[c][3],configs_all[c][4],configs_all[c][6],configs_all[c][7],configs_all[c][8],configs_all[c][9],configs_all[c][10],configs_all[c][11],configs_all[c][12],gpu_cycles.get(configs_all[c][0],0),pim_cycles.get(configs_all[c+1][0],0)])
+      else:
+        wr.writerow([configs_all[c][0],configs_all[c][2],configs_all[c][5],configs_all[c][3],configs_all[c][4],configs_all[c][6],configs_all[c][7],configs_all[c][8],configs_all[c][9],configs_all[c][10],configs_all[c][11],configs_all[c][12],gpu_cycles.get(configs_all[c][0],0),0])
+
+  if args.split_ratio == 100:
+    gpu_cycles = {}
+    for c in range(len(configs_gpu)):
+      fname = f"traces-{configs_gpu[c][0]}-baseline.txt"
+      start = 0
+      end = 0
+      with open(fname) as f:
+        lines = f.readlines()
+        for l in lines:
+          if l.find("forward_kernel_cuda_start") != -1:
+            start += 1
+          elif l.find("forward_kernel_cuda_end") != -1:
+            end += 1
+        # if start != 3 or end != 3:
+        #   print(f"SKIP: {fname}")
+        #   continue
+
+        runs = []
+        for i, l in enumerate(lines):
+          if l.find("forward_kernel_cuda_end") != -1:
+            runs.append(int(lines[i-1].split("=")[1]))
+        # assert len(runs) == 3
+        for i in range(len(runs)-1, 0, -1):
+          runs[i] -= runs[i-1]
+        for i in range(len(runs)):
+          runs[i] -= args.kernel_launch_latency * 2
+        gpu_cycles[configs_gpu[c][0]]=int(np.median(runs))
+    with open(f'{args.model}_split{args.split_ratio}-baseline.csv','w', newline='') as f:
+      wr = csv.writer(f)
+      wr.writerow(['kernel_name','I_c','O_c','H','W','kernel_size','pads','strides','group','dilations','bias','activation','GPU cycles','PIM cycles'])
+      for c in range(len(configs_all)):
+        if "pim"in configs_all[c][0]:
+          continue
+        elif "added" in configs_all[c][0]:
+          wr.writerow([configs_all[c][0],configs_all[c][2],configs_all[c][5],configs_all[c][3],configs_all[c][4],configs_all[c][6],configs_all[c][7],configs_all[c][8],configs_all[c][9],configs_all[c][10],configs_all[c][11],configs_all[c][12],gpu_cycles.get(configs_all[c][0],0),pim_cycles.get(configs_all[c+1][0],0)])
+        else:
+          wr.writerow([configs_all[c][0],configs_all[c][2],configs_all[c][5],configs_all[c][3],configs_all[c][4],configs_all[c][6],configs_all[c][7],configs_all[c][8],configs_all[c][9],configs_all[c][10],configs_all[c][11],configs_all[c][12],gpu_cycles.get(configs_all[c][0],0),0])
+
+def pim(configs_all):
+  if args.gpgpusim_config== "SM75_RTX2060" or args.gpgpusim_config== "SM75_RTX2060_S":
+    scale=1.605882353
+  elif args.gpgpusim_config== "SM7_TITANV":
+    scale=1.411764706
+  else:
+    assert False
+  pim_cycles = {}
+  with open(f'{args.model}_split0_{args.n_channel}.csv','w', newline='') as f:
+    wr = csv.writer(f)
+    wr.writerow(['kernel_name','I_c','O_c','H','W','kernel_size','pads','strides','group','dilations','bias','activation','GPU cycles','PIM cycles'])
+    for c in range(len(configs_all)):
+      pname = f"{configs_all[c][0]}_{args.n_channel}/PIM_trace_partition_{args.n_channel}-{32 - args.n_channel}.pim"
+      cyc = os.popen(f"/root/pim-simulator/ramulator /root/pim-simulator/configs/HBM-config.cfg --mode=dram {pname} | grep Cycle").read()
+      cyc = re.sub(r'[^0-9]', '', cyc)
+      pim_cycles[configs_all[c][0]]=int(cyc) * scale
+      print(pim_cycles[configs_all[c][0]])
+      wr.writerow([configs_all[c][0],configs_all[c][2],configs_all[c][5],configs_all[c][3],configs_all[c][4],configs_all[c][6],configs_all[c][7],configs_all[c][8],configs_all[c][9],configs_all[c][10],configs_all[c][11],configs_all[c][12],0,pim_cycles.get(configs_all[c][0],0)])
+
+def update_pim(configs_all, split_ratio):
+  if args.gpgpusim_config == "SM75_RTX2060":
+    scale = 1.605882353
+  elif args.gpgpusim_config == "SM7_TITANV":
+    scale = 1.411764706
+  else:
+    assert False
+
+  f = pd.read_csv(f'{args.model}_split{split_ratio}_{args.n_channel}.csv', delimiter=',')
+  header = list(f.columns)
+  rows = [list(row) for row in f.values]
+
+  pim_cycles = {}
+  for i, c in enumerate(configs_all):
+    if split_ratio == 0 or split_ratio == 100:
+      idx = i
+    elif "pim" in c[0]:
+      continue
+    elif "added" in c[0]:
+      idx = i + 1
+    else:
+      idx = i
+
+    pname = f"{configs_all[idx][0]}_{args.n_channel}/PIM_trace_partition_{args.n_channel}-{32 - args.n_channel}.pim"
+    cyc = os.popen(f"/root/pim-simulator/ramulator /root/pim-simulator/configs/HBM-config.cfg --mode=dram {pname} | grep Cycle").read()
+    cyc = re.sub(r'[^0-9]', '', cyc)
+
+    pim_cycles[c[0]] = int(cyc) * scale
+    if split_ratio != 0 and int(c[9]) > 1:
+      pim_cycles[c[0]] = 0
+
+  with open(f'{args.model}_split{split_ratio}_{args.n_channel}_.csv', 'w', newline='') as g:
+    writer = csv.writer(g)
+    writer.writerow(header)
+    for row in rows:
+      row[13] = pim_cycles[row[0]]
+      writer.writerow(row)
+
+if args.trace:
+  trace(CONFIG_GPU)
+
+if args.simulate:
+  for config in CONFIG_PIM:
+    os.system(f'sh pim_codegen.sh {config[0]}_{args.n_channel} {config[5]} {config[2]} {config[6][1]} {config[6][3]} {config[8]} {config[7][1]} {config[7][3]} {config[10]} {config[9]} {config[11]} {config[3]} {config[4]} {args.n_channel} {args.n_gwrite}')
+  simulate(CONFIG_GPU, CONFIG_ALL)
+
+if args.stat:
+  statistics(CONFIG_GPU, CONFIG_PIM, CONFIG_ALL)
+
+if args.pim:
+  for config in CONFIG_ALL:
+    os.system(f'sh pim_codegen.sh {config[0]}_{args.n_channel} {config[5]} {config[2]} {config[6][1]} {config[6][3]} {config[8]} {config[7][1]} {config[7][3]} {config[10]} {config[9]} {config[11]} {config[3]} {config[4]} {args.n_channel} {args.n_gwrite}')
+  pim(CONFIG_ALL)
+
+if args.make_max_shape:
+  ratio=0
+  CONFIG_RESULT=[]
+  while(ratio<=100):
+    if ratio == 0:
+      os.system(f"python inspect_shape.py --model={args.model} --split_ratio=100")
+    else:
+      os.system(f"python inspect_shape.py --model={args.model} --split_ratio={ratio}")
+    CONFIG_ALL_max_shape=[]
+    CONFIG_GPU_max_shape=[]
+    CONFIG_PIM_max_shape=[]
+    with open(f"{args.model}_{args.n_channel}.onnx_conv.csv") as f:
+      rdr = csv.reader(f)
+      for line in rdr:
+        line.append(ratio)
+        CONFIG_ALL_max_shape.append(line)
+        if "pim" in line[0]:
+          CONFIG_PIM_max_shape.append(line)
+        else:
+          CONFIG_GPU_max_shape.append(line)
+
+    max_csv = pd.read_csv(f"./max_performance_{args.model}_{args.n_channel}.csv")
+    ratio_test = max_csv['RATIO']
+    loc= np.where(ratio_test==ratio)
+
+    for i in (loc[0]):
+      if "added" in CONFIG_GPU_max_shape[i][0]:
+        CONFIG_RESULT.append(CONFIG_GPU_max_shape[i])
+        CONFIG_RESULT.append(CONFIG_ALL_max_shape[CONFIG_ALL_max_shape.index(CONFIG_GPU_max_shape[i])+1])
+      else:
+        CONFIG_RESULT.append(CONFIG_GPU_max_shape[i])
+    ratio = ratio+10
+  print(CONFIG_RESULT)
+  f = open(f'{args.model}_max_ratio.onnx_conv.csv','w', newline='')
+  wr = csv.writer(f)
+  for c in CONFIG_RESULT:
+    wr.writerow(c)
+
+if args.update_pim:
+  assert args.n_channel < 32 or args.split_ratio == 100 and args.n_channel == 32
+
+  split_ratio = args.split_ratio
+  if args.split_ratio == 100 and args.n_channel == 32:
+    os.system(f"cp {args.model}_split100-baseline.csv {args.model}_split100_32.csv")
+  else:
+    if split_ratio == 100:
+      if not os.path.exists(f"{args.model}_split{split_ratio}_{args.n_channel}.csv.bak"):
+        os.system(f"cp {args.model}_split{split_ratio}.csv {args.model}_split{split_ratio}_16.csv")
+      split_ratio = 0
+    os.system(f"cp {args.model}_split{split_ratio}.csv {args.model}_split{split_ratio}_16.csv")
+    if not os.path.exists(f"{args.model}_split{split_ratio}_{args.n_channel}.csv.bak"):
+      os.system(f"cp {args.model}_split{split_ratio}_{args.n_channel}.csv {args.model}_split{split_ratio}_{args.n_channel}.csv.bak")
+  for config in CONFIG_ALL:
+    os.system(f'sh pim_codegen.sh {config[0]}_{args.n_channel} {config[5]} {config[2]} {config[6][1]} {config[6][3]} {config[8]} {config[7][1]} {config[7][3]} {config[10]} {config[9]} {config[11]} {config[3]} {config[4]} {args.n_channel} {args.n_gwrite}')
+  update_pim(CONFIG_ALL, split_ratio)
+  os.system(f"mv {args.model}_split{split_ratio}_{args.n_channel}_.csv {args.model}_split{split_ratio}_{args.n_channel}.csv")
+
+print("Finished!")
