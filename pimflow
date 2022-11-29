@@ -60,13 +60,13 @@ def solve(args):
   pass
 
 def transform(args):
-  split = []
+  split = {}
   pipeline = []
   with open(f'./{args.network}/solve_{args.network}.csv', newline='') as csvfile:
     reader = csv.reader(csvfile, delimiter=',')
     for row in reader:
       if row[1] == "split":
-        split.append({'node': row[0], 'split_ratio': int(row[2])})
+        split[row[0]] = int(row[2])
       elif row[2] == "pipeline":
         pipeline.append({'nodes': row[:2], 'is_gpu_first': int(row[4] != 1)})
       elif row[3] == "pipeline":
@@ -81,11 +81,12 @@ def transform(args):
   onnx.checker.check_model(onnx_model)
 
   node_map = {}
-  onnx_model = InputSplit(-1, split, node_map=node_map).transform(onnx_model)
+  # TODO[ywshin]
+  # onnx_model = InputSplit(-1, split, node_map=node_map).transform(onnx_model)
   # for kv in pipeline:
   #   onnx_model = Pipeline(node_map=node_map).transform(onnx_model, kv['nodes'], stage=2, is_gpu_first=kv['is_gpu_first'])
   onnx.save(onnx_model, f"{args.network}_transformed_opt.onnx")
-  print(node_map)
+  print(node_map) # TODO[ywshin]
 
 def run(args):
   pass

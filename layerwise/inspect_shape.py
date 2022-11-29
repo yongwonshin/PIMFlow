@@ -3,7 +3,7 @@ import numpy as np
 import torchvision.models as models
 import onnx
 from google.protobuf.json_format import MessageToDict
-from pim.util import Net, activation_type
+from pim.util import Net, activation_type, MODEL_LIST
 import os
 
 import argparse
@@ -16,35 +16,7 @@ class Range(object):
     return self.start <= other <= self.end
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--model", help="model", choices=[
-  # efficientnet
-  'efficientnet-v1-b0', 'efficientnet-v1-b1', 'efficientnet-v1-b2', 'efficientnet-v1-b3', 'efficientnet-v1-b4', 'efficientnet-v1-b5', 'efficientnet-v1-b6', 'efficientnet-v1-b7',
-  # mobilenet
-  'mobilenet-v2', 'mobilenet-v2-1.4', 'mobilenet-v3-small', 'mobilenet-v3-large',
-  # resnet
-  'resnet-18', 'resnet-34', 'resnet-50',
-  # resnext
-  'resnext-50',
-  # inception
-  'inception-v3',
-  # shufflenet
-  'shufflenet-v2-x0.5', 'shufflenet-v2-x1.0', 'shufflenet-v2-x2.0',
-  # mnasnet
-  'mnasnet-0.5', 'mnasnet-1.0', 'mnasnet-1.3',
-  # vgg
-  'vgg-16',
-  # regnet
-  'regnet_y_400mf', 'regnet_y_800mf', 'regnet_y_1_6gf', 'regnet_y_3_2gf', 'regnet_y_8gf', 'regnet_y_16gf', 'regnet_y_32gf', 'regnet_y_128gf', 'regnet_x_400mf', 'regnet_x_800mf', 'regnet_x_1_6gf', 'regnet_x_3_2gf', 'regnet_x_8gf', 'regnet_x_16gf', 'regnet_x_32gf', 'regnet_x_128gf',
-  # vision transformer
-  'vit-b-16', 'vit-l-16',
-  'swin-b' , 'swin-s',
-  # convnext
-  'convnext-tiny', 'convnext-small', 'convnext-base', 'convnext-large',
-  # Bert
-  'bert-large-1x1', 'bert-large-1x3', 'bert-large-1x32', 'bert-large-1x64', 'bert-large-1x128',
-  'bert-base-1x1', 'bert-base-1x3', 'bert-base-1x32', 'bert-base-1x64', 'bert-base-1x128',
-  'toy',
-], required=True)
+parser.add_argument("--model", help="model", choices=MODEL_LIST, required=True)
 parser.add_argument("--n_channel", type=int, default=16)
 parser.add_argument("--split_ratio", type=int,  required=True)
 parser.add_argument("--full", action="store_true")
