@@ -24,22 +24,21 @@ class TransformerBase:
     return model
 
 class InputSplit(TransformerBase):
-  def __init__(self, ratio, nodes=[], onnx_datatype=onnx_datatype):
+  def __init__(self, ratio, nodes=[], onnx_datatype=onnx_datatype, node_map={}):
     self.split_ratio = ratio
     self.ONNX_DATATYPE = onnx_datatype
     self.nodes = nodes
+    self.node_map = node_map
 
   def reset(self):
     pass
 
   def satisfy(self, graph, node):
-    # total offload
-    if math.isclose(self.split_ratio, 1):
-      return False
-
-    # non-target nodes
-    if len(self.nodes) == 0 or node.name not in self.nodes:
-      return False
+    # if len(self.nodes) > 0:
+    #   self.split_ratio = -1
+    #   for e in self.nodes:
+    #     if e['node'] == node.name:
+    #       self.split_ratio = (100 - e['split_ratio']) / 100
 
     if node.op_type == "Conv":
       # already processed
@@ -85,6 +84,14 @@ class InputSplit(TransformerBase):
     return math.ceil(get_arg_shape(graph, node, node.input[0])[2] * self.split_ratio)
 
   def apply(self, graph, node):
+    # # total offload
+    # if math.isclose(self.split_ratio, 1):
+    #   node.name += f"_{par_exec_id()}_pim_added"
+    #   par_exec_id(True)
+    #   return
+    # elif self.split_ratio < 0:
+    #   return
+
     weight = find_initializer_by_arg_name(graph, node.input[1])
     bias = None
     if len(node.input) > 2:
@@ -206,10 +213,11 @@ class InputSplit(TransformerBase):
     if bias is not None:
       inputs.append(conv_gpu_bias_name)
 
+    new_name = f'Conv_{gvn()}_{par_exec_id()}_added'
     conv_gpu_output = f"token_{gvn()}"
     conv_gpu = onnx.helper.make_node(
       'Conv',
-      name=f'Conv_{gvn()}_{par_exec_id()}_added',
+      name=new_name,
       inputs=inputs,
       outputs=[conv_gpu_output],
       dilations=find_attribute_by_name(node, 'dilations').ints,
@@ -219,6 +227,7 @@ class InputSplit(TransformerBase):
       strides=find_attribute_by_name(node, 'strides').ints,
     )
     graph.node.insert(n+3, conv_gpu)
+    self.node_map[node.name] = new_name
 
     # add conv (pim) node
     conv_pim_weight_name = f"token_{gvn()}"
@@ -360,11 +369,12 @@ class InputSplit(TransformerBase):
 # TODO: Mul (efficientnet)
 # NOTE: GlobalAveragePool is not suppored (reduction operators)
 class Pipeline(TransformerBase):
-  def __init__(self, onnx_datatype=onnx_datatype):
+  def __init__(self, onnx_datatype=onnx_datatype, node_map={}):
     self.prev_conv2 = None
     self.extra_slice = 0
     self.outputs = []
     self.ONNX_DATATYPE = onnx_datatype
+    self.node_map = node_map
 
   def reset(self):
     self.prev_conv2 = None
@@ -529,10 +539,11 @@ class Pipeline(TransformerBase):
       if bias is not None:
         inputs.append(conv_bias_name)
 
+      new_name = f'Conv_{gvn()}_{par_exec_id()}_{self.postfix(nodes, i, is_gpu_first)}'
       conv1_output = f"token_{gvn()}"
       conv1 = onnx.helper.make_node(
         'Conv',
-        name=f'Conv_{gvn()}_{par_exec_id()}_{self.postfix(nodes, i, is_gpu_first)}',
+        name=new_name,
         inputs=inputs,
         outputs=[conv1_output],
         dilations=find_attribute_by_name(node, 'dilations').ints,
@@ -542,6 +553,7 @@ class Pipeline(TransformerBase):
         strides=find_attribute_by_name(node, 'strides').ints,
       )
       graph.node.insert(n+4, conv1)
+      self.node_map[node.name] = new_name
 
       # add conv node
       conv_weight_name = f"token_{gvn()}"
@@ -770,10 +782,11 @@ class Pipeline(TransformerBase):
       if bias is not None:
         inputs.append(conv_bias_name)
 
+      new_name = f'Conv_{gvn()}_{par_exec_id()}_{self.postfix(nodes, i, is_gpu_first)}'
       conv1_output = f"token_{gvn()}"
       conv1 = onnx.helper.make_node(
         'Conv',
-        name=f'Conv_{gvn()}_{par_exec_id()}_{self.postfix(nodes, i, is_gpu_first)}',
+        name=new_name,
         inputs=inputs,
         outputs=[conv1_output],
         dilations=find_attribute_by_name(node, 'dilations').ints,
@@ -783,6 +796,7 @@ class Pipeline(TransformerBase):
         strides=find_attribute_by_name(node, 'strides').ints,
       )
       graph.node.insert(n+3, conv1)
+      self.node_map[node.name] = new_name
 
       # add conv node
       conv_weight_name = f"token_{gvn()}"

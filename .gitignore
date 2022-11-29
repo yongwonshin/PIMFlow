@@ -7,5 +7,7 @@ tmp-*/
 *.onnx
 *.csv
 traces-*/
+trace-*/
 gpgpu_inst_stats.txt
 traces-*.txt
+data/mobilenet-v2/

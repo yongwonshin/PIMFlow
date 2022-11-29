@@ -241,7 +241,7 @@ class Net(torch.nn.Module):
     self.act2 = torch.nn.Hardtanh(0, 6)
     self.conv3 = torch.nn.Conv2d(64, 64, 1, padding=0, stride=1, bias=True)
     self.act3 = torch.nn.Hardtanh(0, 6)
-    self.gap = torch.nn.AvgPool2d(224)
+    self.gap = torch.nn.AvgPool2d(16)
     self.flatten = torch.nn.Flatten()
     self.linear = torch.nn.Linear(64, 10)
 

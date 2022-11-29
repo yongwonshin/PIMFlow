@@ -4,8 +4,11 @@ from __future__ import absolute_import
 from pim.util import *
 from pim.transform import *
 
+import onnx
+import torch
 import argparse
 import os
+import csv
 
 def parse_arguments():
   parser = argparse.ArgumentParser()
@@ -21,12 +24,68 @@ def parse_arguments():
 
   return args
 
+def make_model(network):
+  model = get_torch_model(network)
+  model.cuda()
+  model.eval()
+
+  x = get_random_input(network)
+
+  # Export the model
+  torch.onnx.export(model,               # model being run
+                    x,                         # model input (or a tuple for multiple inputs)
+                    f"{network}.onnx",   # where to save the model (can be a file or file-like object)
+                    export_params=True,        # store the trained parameter weights inside the model file
+                    opset_version=13,          # the ONNX version to export the model to
+                    do_constant_folding=True,  # whether to execute constant folding for optimization
+                    # training=TrainingMode.TRAINING,
+                    input_names = ['input'],   # the model's input names
+                    output_names = ['output']) # the model's output names
+                    # dynamic_axes={'input' : {0 : 'batch_size'},    # variable length axes
+                    #               'output' : {0 : 'batch_size'}})
+
+  onnx_model = onnx.load(f"{network}.onnx")
+  onnx.checker.check_model(onnx_model)
+
+  # infer shapes & preprocess
+  onnx_model = onnx.shape_inference.infer_shapes(onnx_model)
+  preprocess(onnx_model)
+  return onnx_model
+
 def profile(args):
   if args.transform == "split":
     os.system(f"cd layerwise && ./profile.sh {args.network}")
 
 def solve(args):
   pass
+
+def transform(args):
+  split = []
+  pipeline = []
+  with open(f'./{args.network}/solve_{args.network}.csv', newline='') as csvfile:
+    reader = csv.reader(csvfile, delimiter=',')
+    for row in reader:
+      if row[1] == "split":
+        split.append({'node': row[0], 'split_ratio': int(row[2])})
+      elif row[2] == "pipeline":
+        pipeline.append({'nodes': row[:2], 'is_gpu_first': int(row[4] != 1)})
+      elif row[3] == "pipeline":
+        pipeline.append({'nodes': row[:3], 'is_gpu_first': False})
+      else:
+        raise Exception("Must NOT reach here!")
+
+  if not os.path.exists(f"{args.network}.onnx"):
+    onnx_model = make_model(args.network)
+  else:
+    onnx_model = onnx.load(f"{args.network}.onnx")
+  onnx.checker.check_model(onnx_model)
+
+  node_map = {}
+  onnx_model = InputSplit(-1, split, node_map=node_map).transform(onnx_model)
+  # for kv in pipeline:
+  #   onnx_model = Pipeline(node_map=node_map).transform(onnx_model, kv['nodes'], stage=2, is_gpu_first=kv['is_gpu_first'])
+  onnx.save(onnx_model, f"{args.network}_transformed_opt.onnx")
+  print(node_map)
 
 def run(args):
   pass
@@ -39,6 +98,7 @@ if __name__ == '__main__':
   elif args.mode == "solve":
     solve(args)
   elif args.mode == "run":
+    transform(args)
     run(args)
   else:
     raise Exception("Must NOT reach here!")
