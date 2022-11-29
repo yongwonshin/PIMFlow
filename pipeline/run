@@ -1,0 +1,269 @@
+from subprocess import Popen
+import time
+import argparse
+import multiprocessing
+import os
+import numpy as np
+import csv
+import re
+import pandas as pd
+from pim.util import MODEL_LIST
+parser = argparse.ArgumentParser()
+group = parser.add_mutually_exclusive_group(required=True)
+group.add_argument("--trace", action="store_true", help="create trace")
+group.add_argument("--simulate", action="store_true", help="simulate")
+group.add_argument("--stat", action="store_true", help="record statistics")
+group.add_argument("--pim", action="store_true", help="pim_cycle")
+group.add_argument("--update_pim", action="store_true", help="update pim")
+parser.add_argument("--gpgpusim_config", help="gpgpusim config (e.g. SM75_RTX2060")
+parser.add_argument("--device_id", type=int, default=0)
+parser.add_argument("--pipeline", type=int, default=0)
+parser.add_argument("--kernel_launch_latency", type=int, default=10)
+parser.add_argument("--n_channel", type=int, default=16)
+parser.add_argument("--n_gwrite", type=int, default=4)
+parser.add_argument("--model", help="model", choices=MODEL_LIST, required=True)
+args = parser.parse_args()
+
+if args.trace and (args.gpgpusim_config is None):
+  parser.error("--trace requires --gpgpusim_config")
+if args.simulate and (args.gpgpusim_config is None):
+  parser.error("--simulate requires --gpgpusim_config")
+
+NGPU=[0, 1, 2, 3, 4, 5, 6, 7]
+NCPU=multiprocessing.cpu_count()
+
+CONFIG_ALL=[]
+CONFIG_GPU=[]
+CONFIG_PIM=[]
+
+filename = f"{args.model}_pipelined{args.pipeline}_{args.n_channel}.onnx_conv.csv"
+if not os.path.exists(filename):
+  exit()
+
+with open(filename) as f:
+  rdr = csv.reader(f)
+  for line in rdr:
+    CONFIG_ALL.append(line)
+    if "pim" in line[0]:
+      CONFIG_PIM.append(line)
+    else:
+      CONFIG_GPU.append(line)
+
+def get_device(n):
+  return NGPU[n % len(NGPU)]
+
+def make_args(config, n_mem):
+  script = ""
+  if args.trace:
+    script = "trace.sh"
+  elif args.simulate:
+    script = "sim.sh"
+  elif args.stat:
+    script = "stat.sh"
+
+  dev = get_device(n_mem)
+  print(config)
+  a = f"export CUDA_VISIBLE_DEVICES={dev} && export TRACES_PATH=traces-{config[0]} && echo $CUDA_VISIBLE_DEVICES && ./{script} {config[0]} {config[5]} {config[2]} {config[6][1]} {config[6][3]} {config[8]} {config[7][1]} {config[7][3]} {config[10]} {config[9]} {config[11]} {config[3]} {config[4]} {args.gpgpusim_config} {config[12]} {dev} {args.n_channel}"
+  print(a)
+  return a
+
+def trace(configs):
+  procs = []
+  n = 0
+  r = 0
+  for i in range(min(len(NGPU), len(configs))):
+    procs.append(Popen(make_args(configs[i], i), shell=True, start_new_session=True))
+    r += 1
+    time.sleep(3)
+  while True:
+    if n >= len(configs):
+      break
+    for i, p in enumerate(procs):
+      if p is None:
+        continue
+      if p.poll() is not None:
+        if r < len(configs):
+          procs[i] = Popen(make_args(configs[r], i), shell=True, start_new_session=True)
+          r += 1
+        else:
+          procs[i] = None
+        n += 1
+        time.sleep(3)
+    time.sleep(3)
+
+def simulate(configs_gpu):
+  procs = []
+  n = 0
+  r = 0
+  for i in range(min(NCPU, len(configs_gpu))):
+    print(configs_gpu[i][0])
+    procs.append(Popen(make_args(configs_gpu[i], i), shell=True, start_new_session=True))
+    r += 1
+    time.sleep(3)
+
+  while True:
+    if n >= len(configs_gpu):
+      break
+
+    for i, p in enumerate(procs):
+      if p is None:
+        continue
+
+      if p.poll() is not None:
+        if r < len(configs_gpu):
+          print(configs_gpu[i][0])
+          procs[i] = Popen(make_args(configs_gpu[r], i), shell=True, start_new_session=True)
+        else:
+          procs[i] = None
+
+        r += 1
+        n += 1
+        time.sleep(3)
+
+    time.sleep(3)
+
+def statistics(configs_gpu, configs_pim, configs_all):
+  if args.gpgpusim_config == "SM75_RTX2060":
+    scale=1.605882353
+  elif args.gpgpusim_config == "SM7_TITANV":
+    scale=1.411764706
+  else:
+    assert False
+
+  pim_cycles = {}
+  for c in range(len(configs_pim)):
+    pname = f"{configs_pim[c][0]}_{args.n_channel}/PIM_trace_partition_{args.n_channel}-{32 - args.n_channel}.pim"
+    cyc = os.popen(f"/root/PIMFlow_ramulator/ramulator /root/PIMFlow_ramulator/configs/HBM-config.cfg --mode=dram {pname} | grep Cycle").read()
+    cyc = re.sub(r'[^0-9]', '', cyc)
+    pim_cycles[configs_pim[c][0]] = int(cyc) * scale
+    print(pim_cycles[configs_pim[c][0]])
+
+  gpu_cycles = {}
+  for c in range(len(configs_gpu)):
+    fname = f"traces-{configs_gpu[c][0]}.txt"
+    with open(fname) as f:
+      lines = f.readlines()
+      
+      # if start != 3 or end != 3:
+      #   print(f"SKIP: {fname}")
+      #   continue
+      tot_runs = []
+      runs = []
+      energy = 0
+      for i, l in enumerate(lines):
+        if l.find("gpu_tot_sim_cycle") != -1:
+          tot_runs.append(int(lines[i].split("=")[1]))
+        if l.find("kernel_name") != -1 and l.find("forward_kernel_cuda") == -1:
+          runs.append(int(lines[i+1].split("=")[1]))
+      # assert len(runs) == 3
+      gpu_cycles[configs_gpu[c][0]]=int(tot_runs[len(tot_runs)-1])
+      # print(runs)
+  with open(f'{args.model}_pipeline{args.pipeline}_{args.n_channel}.csv','w', newline='') as f:
+    wr = csv.writer(f)
+    wr.writerow(['kernel_name','I_c','O_c','H','W','kernel_size','pads','strides','group','dilations','bias','activation','GPU cycles','PIM cycles'])
+
+    c = 0
+    while True:
+      if c >= len(configs_all):
+        break
+
+      if "pim" in configs_all[c][0]:
+        if c + 1 >= len(configs_all):
+          wr.writerow([configs_all[c][0],configs_all[c][2],configs_all[c][5],configs_all[c][3],configs_all[c][4],configs_all[c][6],configs_all[c][7],configs_all[c][8],configs_all[c][9],configs_all[c][10],configs_all[c][11],configs_all[c][12],0,pim_cycles.get(configs_all[c][0],0)])
+          c = c + 1
+          continue
+        if "pim" in configs_all[c+1][0]:
+          wr.writerow([configs_all[c][0],configs_all[c][2],configs_all[c][5],configs_all[c][3],configs_all[c][4],configs_all[c][6],configs_all[c][7],configs_all[c][8],configs_all[c][9],configs_all[c][10],configs_all[c][11],configs_all[c][12],0,pim_cycles.get(configs_all[c][0],0)])
+        elif "added" in configs_all[c+1][0]:
+          wr.writerow([configs_all[c][0],configs_all[c][2],configs_all[c][5],configs_all[c][3],configs_all[c][4],configs_all[c][6],configs_all[c][7],configs_all[c][8],configs_all[c][9],configs_all[c][10],configs_all[c][11],configs_all[c][12],gpu_cycles.get(configs_all[c+1][0],0),pim_cycles.get(configs_all[c][0],0)])
+          c = c + 1
+        else:
+          wr.writerow([configs_all[c][0],configs_all[c][2],configs_all[c][5],configs_all[c][3],configs_all[c][4],configs_all[c][6],configs_all[c][7],configs_all[c][8],configs_all[c][9],configs_all[c][10],configs_all[c][11],configs_all[c][12],0,pim_cycles.get(configs_all[c][0],0)])
+      elif "added" in configs_all[c][0]:
+        if c + 1 >= len(configs_all):
+          wr.writerow([configs_all[c][0],configs_all[c][2],configs_all[c][5],configs_all[c][3],configs_all[c][4],configs_all[c][6],configs_all[c][7],configs_all[c][8],configs_all[c][9],configs_all[c][10],configs_all[c][11],configs_all[c][12],gpu_cycles.get(configs_all[c][0],0),0])
+          c = c + 1
+          continue
+        if "pim" in configs_all[c+1][0]:
+          wr.writerow([configs_all[c][0],configs_all[c][2],configs_all[c][5],configs_all[c][3],configs_all[c][4],configs_all[c][6],configs_all[c][7],configs_all[c][8],configs_all[c][9],configs_all[c][10],configs_all[c][11],configs_all[c][12],gpu_cycles.get(configs_all[c][0],0),pim_cycles.get(configs_all[c+1][0],0)])
+          c = c + 1
+        elif "added" in configs_all[c+1][0]:
+          wr.writerow([configs_all[c][0],configs_all[c][2],configs_all[c][5],configs_all[c][3],configs_all[c][4],configs_all[c][6],configs_all[c][7],configs_all[c][8],configs_all[c][9],configs_all[c][10],configs_all[c][11],configs_all[c][12],gpu_cycles.get(configs_all[c][0],0),0])
+        else:
+          wr.writerow([configs_all[c][0],configs_all[c][2],configs_all[c][5],configs_all[c][3],configs_all[c][4],configs_all[c][6],configs_all[c][7],configs_all[c][8],configs_all[c][9],configs_all[c][10],configs_all[c][11],configs_all[c][12],gpu_cycles.get(configs_all[c][0],0),0])
+      else:
+        wr.writerow([configs_all[c][0],configs_all[c][2],configs_all[c][5],configs_all[c][3],configs_all[c][4],configs_all[c][6],configs_all[c][7],configs_all[c][8],configs_all[c][9],configs_all[c][10],configs_all[c][11],configs_all[c][12],gpu_cycles.get(configs_all[c][0],0),0])
+      c = c + 1
+
+def update_pim(configs_pim):
+  if args.gpgpusim_config == "SM75_RTX2060":
+    scale = 1.605882353
+  elif args.gpgpusim_config == "SM7_TITANV":
+    scale = 1.411764706
+  else:
+    assert False
+
+  pim_cycles = {}
+  for c in range(len(configs_pim)):
+    pname = f"{configs_pim[c][0]}_{args.n_channel}/PIM_trace_partition_{args.n_channel}-{32 - args.n_channel}.pim"
+    cyc = os.popen(f"/root/PIMFlow_ramulator/ramulator /root/PIMFlow_ramulator/configs/HBM-config.cfg --mode=dram {pname} | grep Cycle").read()
+    cyc = re.sub(r'[^0-9]', '', cyc)
+    pim_cycles[configs_pim[c][0]] = int(cyc) * scale
+
+  f = pd.read_csv(f'{args.model}_pipeline{args.pipeline}_{args.n_channel}.csv', delimiter=',')
+  header = list(f.columns)
+  rows = [list(row) for row in f.values]
+
+  g = pd.read_csv(f'{args.model}_pipelined{args.pipeline}_{args.n_channel}.onnx_conv.csv', delimiter=',')
+  # header2 = list(g.columns)
+  rows2 = [list(row) for row in g.values]
+
+  with open(f'{args.model}_pipeline{args.pipeline}_{args.n_channel}_.csv', 'w', newline='') as h:
+    writer = csv.writer(h)
+    writer.writerow(header)
+    for i, row in enumerate(rows):
+      rows[i][13] = 0
+    for i, row in enumerate(rows):
+      if args.pipeline == 1:
+        if "pim" in row[0]:
+          rows[i][13] = pim_cycles[row[0]]
+      elif args.pipeline == 2:
+        if "pim" in row[0]:
+          for j, row2 in enumerate(rows2):
+            if row2[0] == row[0]:
+              rows[i-1][13] = pim_cycles[rows2[j-1][0]]
+              rows[i][13] = pim_cycles[rows2[j][0]]
+              break
+      elif args.pipeline == 3:
+        if "added" in rows[i][0] and "pim" not in rows[i][0] and "pim" in rows[i+1][0]:
+          for j, row2 in enumerate(rows2):
+            if row2[0] == row[0]:
+              rows[i-2][13] = pim_cycles[rows2[j-3][0]]
+              rows[i-1][13] = pim_cycles[rows2[j-2][0]]
+              rows[i][13] = pim_cycles[rows2[j+1][0]]
+              rows[i+1][13] = pim_cycles[rows2[j+2][0]]
+      else:
+        assert False
+    writer.writerows(rows)
+
+if args.trace:
+  trace(CONFIG_GPU)
+
+if args.simulate:
+  for config in CONFIG_PIM:
+    os.system(f'sh pim_codegen.sh {config[0]}_{args.n_channel} {config[5]} {config[2]} {config[6][1]} {config[6][3]} {config[8]} {config[7][1]} {config[7][3]} {config[10]} {config[9]} {config[11]} {config[3]} {config[4]} {args.n_channel} {args.n_gwrite}')
+  simulate(CONFIG_GPU)
+
+if args.stat:
+  statistics(CONFIG_GPU, CONFIG_PIM, CONFIG_ALL)
+
+if args.update_pim:
+  # os.system(f"cp {args.model}_pipeline{args.pipeline}.csv {args.model}_pipeline{args.pipeline}_16.csv")
+  # if not os.path.exists(f'{args.model}_pipeline{args.pipeline}_{args.n_channel}.csv.bak'):
+    # os.system(f"cp {args.model}_pipeline{args.pipeline}_{args.n_channel}.csv {args.model}_pipeline{args.pipeline}_{args.n_channel}.csv.bak")
+  for config in CONFIG_PIM:
+    os.system(f'sh pim_codegen.sh {config[0]}_{args.n_channel} {config[5]} {config[2]} {config[6][1]} {config[6][3]} {config[8]} {config[7][1]} {config[7][3]} {config[10]} {config[9]} {config[11]} {config[3]} {config[4]} {args.n_channel} {args.n_gwrite}')
+  update_pim(CONFIG_PIM)
+  os.system(f"mv {args.model}_pipeline{args.pipeline}_{args.n_channel}_.csv {args.model}_pipeline{args.pipeline}_{args.n_channel}.csv")
+
+print("Finished!")
