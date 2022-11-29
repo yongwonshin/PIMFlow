@@ -1,4 +1,4 @@
-#!/root/miniconda3/bin/python3
+#!/usr/bin/python3
 from __future__ import absolute_import
 
 from pim.util import *
@@ -27,9 +27,11 @@ def parse_arguments():
 def make_model(network):
   model = get_torch_model(network)
   model.cuda()
+  model.half()
   model.eval()
 
   x = get_random_input(network)
+  x = x.half()
 
   # Export the model
   torch.onnx.export(model,               # model being run
@@ -93,7 +95,7 @@ def run(args):
 
 if __name__ == '__main__':
   args = parse_arguments()
-
+  make_model(args.network)
   if args.mode == "profile":
     profile(args)
   elif args.mode == "solve":

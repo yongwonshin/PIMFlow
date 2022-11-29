@@ -235,7 +235,7 @@ def supportedActivationNodes(graph, nodes):
 class Net(torch.nn.Module):
   def __init__(self):
     super(Net, self).__init__()
-    self.conv1 = torch.nn.Conv2d(3, 64, 1, padding=1, stride=1, bias=True)
+    self.conv1 = torch.nn.Conv2d(3, 64, 1, padding=0, stride=1, bias=True)
     self.act1 = torch.nn.Hardtanh(0, 6)
     self.conv2 = torch.nn.Conv2d(64, 64, 3, padding=1, stride=1, groups=64, bias=True)
     self.act2 = torch.nn.Hardtanh(0, 6)

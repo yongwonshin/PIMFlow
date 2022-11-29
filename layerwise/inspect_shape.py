@@ -3,7 +3,7 @@ import numpy as np
 import torchvision.models as models
 import onnx
 from google.protobuf.json_format import MessageToDict
-from pim.util import Net, activation_type, MODEL_LIST
+from pim.util import Net, activation_type, MODEL_LIST, get_random_input
 import os
 
 import argparse
@@ -22,7 +22,7 @@ parser.add_argument("--split_ratio", type=int,  required=True)
 parser.add_argument("--full", action="store_true")
 args = parser.parse_args()
 
-os.environ["CUDA_VISIBLE_DEVICES"]=f"{args.n_channel // 4 % 8}"
+os.environ["CUDA_VISIBLE_DEVICES"]=f"{args.n_channel // 4 % torch.cuda.device_count()}"
 
 model = None
 if args.model == "efficientnet-v1-b0":
@@ -131,26 +131,8 @@ model.cuda()
 model.eval()
 model.half()
 
-# https://smecsm.tistory.com/240
-x = torch.randn(1, 3, 224, 224).cuda().half()
-# TODO: find all input size for all models
-if args.model == "efficientnet-v1-b7":
-  x = torch.randn(1, 3, 600, 600).cuda().half()
-elif args.model in ["efficientnet-v1-b6", "convnext-large"]:
-  x = torch.randn(1, 3, 528, 528).cuda().half()
-elif args.model == "efficientnet-v1-b5":
-  x = torch.randn(1, 3, 456, 456).cuda().half()
-elif args.model == "efficientnet-v1-b4":
-  x = torch.randn(1, 3, 380, 380).cuda().half()
-elif args.model == "efficientnet-v1-b3":
-  x = torch.randn(1, 3, 300, 300).cuda().half()
-elif args.model == "efficientnet-v1-b2":
-  x = torch.randn(1, 3, 260, 260).cuda().half()
-elif args.model == "efficientnet-v1-b1":
-  x = torch.randn(1, 3, 240, 240).cuda().half()
-elif args.model == "inception-v3":
-  x = torch.randn(1, 3, 299, 299).cuda().half()
-
+x = get_random_input(args.model)
+x = x.half()
 
 if args.model in ['bert-large-1x1', 'bert-large-1x3', 'bert-large-1x32', 'bert-large-1x64', 'bert-large-1x128', 'bert-base-1x1', 'bert-base-1x3', 'bert-base-1x32', 'bert-base-1x64', 'bert-base-1x128']:
   onnx_model = onnx.load(f"{args.model}_{args.n_channel}.onnx")

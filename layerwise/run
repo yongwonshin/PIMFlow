@@ -313,9 +313,9 @@ if args.make_max_shape:
   CONFIG_RESULT=[]
   while(ratio<=100):
     if ratio == 0:
-      os.system(f"python inspect_shape.py --model={args.model} --split_ratio=100")
+      os.system(f"python3 inspect_shape.py --model={args.model} --split_ratio=100")
     else:
-      os.system(f"python inspect_shape.py --model={args.model} --split_ratio={ratio}")
+      os.system(f"python3 inspect_shape.py --model={args.model} --split_ratio={ratio}")
     CONFIG_ALL_max_shape=[]
     CONFIG_GPU_max_shape=[]
     CONFIG_PIM_max_shape=[]
