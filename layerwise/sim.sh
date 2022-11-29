@@ -23,7 +23,7 @@ EXTRA_GPU_CONFIG_1="-gpgpu_n_mem $((32-$N_CHANNEL)) -gpgpu_deadlock_detect 0"
 EXTRA_GPU_CONFIG_2="-gpgpu_n_mem 32 -gpgpu_deadlock_detect 0"
 # TODO: add PIM_PATH
 
-BASE_PATH="/root/accel-sim-framework"
+BASE_PATH="/root/PIMFlow_accel-sim-framework"
 
 export CUDA_INSTALL_PATH=/usr/local/cuda
 source "$BASE_PATH/gpu-simulator/setup_environment.sh"
