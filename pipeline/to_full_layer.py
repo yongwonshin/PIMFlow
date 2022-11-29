@@ -102,7 +102,7 @@ def process(model):
     write.writerow(head)
     write.writerows(END_gpu)
 
-os.system(f"python /root/PIMFlow/layerwise/inspect_shape.py --model={args.model} --split_ratio=100 --full --n_channel={args.n_channel}")
+os.system(f"python3 /root/PIMFlow/layerwise/inspect_shape.py --model={args.model} --split_ratio=100 --full --n_channel={args.n_channel}")
 os.system(f"cp ../layerwise/max_performance_{args.model}_{args.n_channel}.csv ./")
 os.system(f"cp ../layerwise/{args.model}_split100-baseline.csv ./")
 os.system(f"cp ../layerwise/{args.model}_split100_{args.n_channel}.csv ./")
