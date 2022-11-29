@@ -7,7 +7,7 @@ from google.protobuf.json_format import MessageToDict
 from pim.util import Net, activation_type
 from pim.transform import Pipeline
 import copy
-from pim.util import MODEL_LIST
+from pim.util import MODEL_LIST, get_random_input
 import os
 
 import argparse
@@ -131,25 +131,8 @@ model.cuda()
 model.eval()
 model.half()
 
-x = torch.randn(1, 3, 224, 224).cuda().half()
-# TODO: find all input size for all models
-if args.model == "efficientnet-v1-b7":
-  x = torch.randn(1, 3, 600, 600).cuda().half()
-elif args.model in ["efficientnet-v1-b6", "convnext-large"]:
-  x = torch.randn(1, 3, 528, 528).cuda().half()
-elif args.model == "efficientnet-v1-b5":
-  x = torch.randn(1, 3, 456, 456).cuda().half()
-elif args.model == "efficientnet-v1-b4":
-  x = torch.randn(1, 3, 380, 380).cuda().half()
-elif args.model == "efficientnet-v1-b3":
-  x = torch.randn(1, 3, 300, 300).cuda().half()
-elif args.model == "efficientnet-v1-b2":
-  x = torch.randn(1, 3, 260, 260).cuda().half()
-elif args.model == "efficientnet-v1-b1":
-  x = torch.randn(1, 3, 240, 240).cuda().half()
-elif args.model == "inception-v3":
-  x = torch.randn(1, 3, 299, 299).cuda().half()
-
+x = get_random_input(args.model)
+x = x.half()
 
 torch_out = model(x)
 # Export the model
