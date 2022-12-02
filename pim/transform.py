@@ -34,17 +34,12 @@ class InputSplit(TransformerBase):
     pass
 
   def satisfy(self, graph, node):
-    # if len(self.nodes) > 0:
-    #   ratio = self.nodes.get(node.name, None)
-    #   print(ratio)
-    #   if ratio is None:
-    #     return False
-    #   elif math.isclose(ratio, 1):
-    #     return False
-    #   elif math.isclose(ratio, 0):
-    #     node.name = f"{node.name}_{par_exec_id()}_pim_added"
-    #     par_exec_id(True)
-    #     return False
+    if len(self.nodes) > 0:
+      ratio = self.nodes.get(node.name, None)
+      if ratio is None:
+        return False
+      else:
+        self.split_ratio = ratio / 100
 
     if node.op_type == "Conv":
       # already processed
@@ -82,6 +77,10 @@ class InputSplit(TransformerBase):
       if self.get_h_gpu(graph, node) + kernel_shape[0] // 2 - ps_gpu >= h - 1:
         return False
 
+      # only gpu
+      if math.isclose(self.split_ratio, 1):
+        return False
+
       return True
     else:
       return False
@@ -90,8 +89,33 @@ class InputSplit(TransformerBase):
     return math.ceil(get_arg_shape(graph, node, node.input[0])[2] * self.split_ratio)
 
   def apply(self, graph, node):
-    # if len(self.nodes) > 0:
-    #   self.split_ratio = (100 - self.nodes[node.name]) / 100
+    # total offloading
+    if math.isclose(self.split_ratio, 0):
+      conv_output = f"token_{gvn()}"
+      new_name = f'Conv_{gvn()}_{par_exec_id()}_pim_added'
+      conv = onnx.helper.make_node(
+        'Conv',
+        name=new_name,
+        inputs=node.input,
+        outputs=[conv_output],
+        dilations=find_attribute_by_name(node, 'dilations').ints,
+        group=find_attribute_by_name(node, 'group').i,
+        kernel_shape=find_attribute_by_name(node, 'kernel_shape').ints,
+        pads=find_attribute_by_name(node, 'pads').ints,
+        strides=find_attribute_by_name(node, 'strides').ints,
+      )
+      n = find_node_index_by_name(graph, node.name)
+      graph.node.insert(n, conv)
+
+      next_nodes = find_nodes_by_arg_name(graph, node.output[0])
+      next_nodes.remove(node)
+      for n in next_nodes:
+        for i in range(len(n.input)):
+          if n.input[i] == node.output[0]:
+            n.input[i] = conv_output
+
+      graph.node.remove(node)
+      return
 
     weight = find_initializer_by_arg_name(graph, node.input[1])
     bias = None
@@ -214,8 +238,8 @@ class InputSplit(TransformerBase):
     if bias is not None:
       inputs.append(conv_gpu_bias_name)
 
-    new_name = f'Conv_{gvn()}_{par_exec_id()}_added'
     conv_gpu_output = f"token_{gvn()}"
+    new_name = f'Conv_{gvn()}_{par_exec_id()}_added'
     conv_gpu = onnx.helper.make_node(
       'Conv',
       name=new_name,
@@ -228,7 +252,7 @@ class InputSplit(TransformerBase):
       strides=find_attribute_by_name(node, 'strides').ints,
     )
     graph.node.insert(n+3, conv_gpu)
-    self.node_map[node.name] = new_name
+    self.node_map[node.name] = [new_name]
 
     # add conv (pim) node
     conv_pim_weight_name = f"token_{gvn()}"
@@ -540,8 +564,8 @@ class Pipeline(TransformerBase):
       if bias is not None:
         inputs.append(conv_bias_name)
 
-      new_name = f'Conv_{gvn()}_{par_exec_id()}_{self.postfix(nodes, i, is_gpu_first)}'
       conv1_output = f"token_{gvn()}"
+      new_name = f'Conv_{gvn()}_{par_exec_id()}_{self.postfix(nodes, i, is_gpu_first)}'
       conv1 = onnx.helper.make_node(
         'Conv',
         name=new_name,
@@ -554,7 +578,8 @@ class Pipeline(TransformerBase):
         strides=find_attribute_by_name(node, 'strides').ints,
       )
       graph.node.insert(n+4, conv1)
-      self.node_map[node.name] = new_name
+      if not new_name.endswith("pim_added") and new_name.endswith("added"):
+        self.node_map[node.name] = [new_name]
 
       # add conv node
       conv_weight_name = f"token_{gvn()}"
@@ -578,9 +603,10 @@ class Pipeline(TransformerBase):
         inputs.append(conv_bias_name)
 
       conv2_output = f"token_{gvn()}"
+      new_name = f'Conv_{gvn()}_{par_exec_id(True)}_{self.postfix(nodes, i, is_gpu_first)}'
       conv2 = onnx.helper.make_node(
         'Conv',
-        name=f'Conv_{gvn()}_{par_exec_id(True)}_{self.postfix(nodes, i, is_gpu_first)}',
+        name=new_name,
         inputs=inputs,
         outputs=[conv2_output],
         dilations=find_attribute_by_name(node, 'dilations').ints,
@@ -590,6 +616,8 @@ class Pipeline(TransformerBase):
         strides=find_attribute_by_name(node, 'strides').ints,
       )
       graph.node.insert(n+5, conv2)
+      if not new_name.endswith("pim_added") and new_name.endswith("added"):
+        self.node_map[node.name].append(new_name)
 
       outputs = [conv1_output, conv2_output]
       next_nodes = find_nodes_by_arg_name(graph, node.output[0])
@@ -783,8 +811,8 @@ class Pipeline(TransformerBase):
       if bias is not None:
         inputs.append(conv_bias_name)
 
-      new_name = f'Conv_{gvn()}_{par_exec_id()}_{self.postfix(nodes, i, is_gpu_first)}'
       conv1_output = f"token_{gvn()}"
+      new_name = f'Conv_{gvn()}_{par_exec_id()}_{self.postfix(nodes, i, is_gpu_first)}'
       conv1 = onnx.helper.make_node(
         'Conv',
         name=new_name,
@@ -797,7 +825,8 @@ class Pipeline(TransformerBase):
         strides=find_attribute_by_name(node, 'strides').ints,
       )
       graph.node.insert(n+3, conv1)
-      self.node_map[node.name] = new_name
+      if not new_name.endswith("pim_added") and new_name.endswith("added"):
+        self.node_map[node.name] = [new_name]
 
       # add conv node
       conv_weight_name = f"token_{gvn()}"
@@ -821,9 +850,10 @@ class Pipeline(TransformerBase):
         inputs.append(conv_bias_name)
 
       conv2_output = f"token_{gvn()}"
+      new_name = f'Conv_{gvn()}_{par_exec_id(True)}_{self.postfix(nodes, i, is_gpu_first)}'
       conv2 = onnx.helper.make_node(
         'Conv',
-        name=f'Conv_{gvn()}_{par_exec_id(True)}_{self.postfix(nodes, i, is_gpu_first)}',
+        name=new_name,
         inputs=inputs,
         outputs=[conv2_output],
         dilations=find_attribute_by_name(node, 'dilations').ints,
@@ -833,6 +863,8 @@ class Pipeline(TransformerBase):
         strides=find_attribute_by_name(node, 'strides').ints,
       )
       graph.node.insert(n+4, conv2)
+      if not new_name.endswith("pim_added") and new_name.endswith("added"):
+        self.node_map[node.name].append(new_name)
 
       outputs = [conv1_output, conv2_output]
       next_nodes = find_nodes_by_arg_name(graph, node.output[0])

@@ -33,13 +33,21 @@ MODEL_LIST = [
   'toy', 'layer',
 ]
 
-GVN = 0
+GVN = -1
 PAR_EXEC_ID = 0
 
-def gvn():
+def gvn(reset=False):
   global GVN
+
+  if reset:
+    GVN = -1
+    return None
+
   GVN += 1
   return GVN
+
+def to_numpy(tensor):
+  return tensor.detach().cpu().numpy() if tensor.requires_grad else tensor.cpu().numpy()
 
 def par_exec_id(increment=False):
   global PAR_EXEC_ID
@@ -217,6 +225,7 @@ def find_attribute_by_name(node, name):
 
 # assign node the unique name
 def preprocess(onnx_model):
+  gvn(reset=True)
   for node in onnx_model.graph.node:
     # if not node.name:
     op_type = node.op_type
@@ -416,3 +425,42 @@ def get_random_input(name):
   elif name == "toy":
     x = torch.randn(1, 3, 16, 16).cuda()
   return x
+
+def parse_kernel_number(l):
+  return int(l.split("-")[1].split(".")[0])
+
+def get_kernel_start_and_end(trace_path, n_run=3):
+  start=None
+
+  # start, end
+  runs = []
+  skip = True # skip first interval
+  with open(f"./{trace_path}/stats.csv") as f:
+    lines = f.readlines()
+
+    for i, l in enumerate(lines):
+      if i == 0:
+        continue
+
+      l = l.split(",")
+
+      n = parse_kernel_number(l[0].strip())
+      name = l[1].strip()
+
+      if name.find("forward_kernel_cuda_start") != -1:
+        # if skip:
+        #   skip = False
+        #   continue
+
+        start = n
+
+      if start is not None and name.find("forward_kernel_cuda_end") != -1:
+        runs.append((start, n))
+
+  intv = runs[0][1] - runs[0][0]
+  for s, t in runs:
+    assert intv == t - s
+
+  assert len(runs) == n_run
+
+  return (runs[0][0], runs[2][1])

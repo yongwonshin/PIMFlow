@@ -11,3 +11,11 @@ trace-*/
 gpgpu_inst_stats.txt
 traces-*.txt
 data/mobilenet-v2/
+tmp/
+compile.so
+.pkl_memoize_py3
+compile-*.so
+*.pkl
+*.stats
+*.log
+*_node_map.txt

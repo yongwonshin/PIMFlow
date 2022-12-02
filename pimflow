@@ -9,14 +9,20 @@ import torch
 import argparse
 import os
 import csv
+import tvm
+import tvm.relay as relay
+from tvm.contrib import graph_executor
+from torch.utils.cpp_extension import load
+import pickle
 
 def parse_arguments():
   parser = argparse.ArgumentParser()
-  parser.add_argument("-m", "--mode", help="mode", choices=["profile", "solve", "run" ,"stat"], required=True)
+  parser.add_argument("-m", "--mode", help="mode", choices=["profile", "solve", "run", "stat", "transform", "build", "trace", "trace_opt", "trace_gpu_only", "run_opt", "run_gpu_only"], required=True)
   parser.add_argument("-t", "--transform", help="graph transformation", choices=["split", "pipeline"])
   parser.add_argument("-n", "--network", help="target network", choices=MODEL_LIST, required=True)
   parser.add_argument("--gpu_only", action="store_true", help="execute only on GPU")
   parser.add_argument("--conv_only", action="store_true", help="execute only convolution layers")
+  parser.add_argument("--trace", action="store_true", help="only trace")
   args = parser.parse_args()
 
   if args.mode == "profile" and (args.transform is None):
@@ -63,13 +69,58 @@ def profile(args):
 def solve(args):
   os.system(f"cd solve && ./solve.sh {args.network}")
 
-def stat(args):
-  os.system(f"cd solve && ./stat.sh {args.network}")
+def stat_conv_only(network):
+  os.system(f"cd solve && ./stat.sh {network}")
 
-def transform(args):
+def get_gpu_cycle(path):
+  cycle = 0
+  with open(path) as f:
+    for line in f:
+      if "gpu_tot_sim_cycle" in line:
+        cycle = int(line.split("=")[1].strip())
+  return cycle
+
+def get_pim_cycle(path):
+  with open(path) as f:
+    for line in f:
+      if "Cycle" in line:
+        return int(line.split(" ")[1].strip())
+
+def stat(network, gpu_only=False):
+  postfix = ""
+  if gpu_only:
+    postfix = "-org"
+  other_cycle = 0
+  par_cycle = 0
+  other_cycle = get_gpu_cycle(f"traces-{network}{postfix}/sim.txt")
+  i = 0
+  while gpu_only and True:
+    found = False
+    gpu_cycle = 0
+    pim_cycle = 0
+    gpu_file = f"traces-{network}/sim.{i}.gpu.txt"
+    pim_file = f"traces-{network}/sim.{i}.pim.txt"
+    if os.path.exists(gpu_file):
+      gpu_cycle = get_gpu_cycle(gpu_file)
+      found = True
+    if os.path.exists(pim_file):
+      pim_cycle = get_gpu_cycle(pim_file)
+      found = True
+    cycle = max(gpu_cycle, pim_cycle)
+    par_cycle += cycle
+    i += 1
+    if not found:
+      break
+  return other_cycle + par_cycle
+
+def extract_profiled_trace(model: str):
+  if not os.path.exists(model) and os.path.exists(f"./data/{model}.tar.gz"):
+    os.system(f"tar -xzf ./data/{model}.tar.gz -C .")
+
+def transform_graph(network):
   split = {}
   pipeline = []
-  with open(f'./{args.network}/solve_{args.network}.csv', newline='') as csvfile:
+  with open(f'./{network}/solve_{network}.csv', newline='') as csvfile:
     reader = csv.reader(csvfile, delimiter=',')
     for row in reader:
       if row[1] == "split":
@@ -81,22 +132,150 @@ def transform(args):
       else:
         raise Exception("Must NOT reach here!")
 
-  if not os.path.exists(f"{args.network}.onnx"):
-    onnx_model = make_model(args.network)
+  if not os.path.exists(f"{network}.onnx"):
+    onnx_model = make_model(network)
   else:
-    onnx_model = onnx.load(f"{args.network}.onnx")
+    onnx_model = onnx.load(f"{network}.onnx")
   onnx.checker.check_model(onnx_model)
 
   node_map = {}
-  # TODO[ywshin]
-  # onnx_model = InputSplit(-1, split, node_map=node_map).transform(onnx_model)
-  # for kv in pipeline:
-  #   onnx_model = Pipeline(node_map=node_map).transform(onnx_model, kv['nodes'], stage=2, is_gpu_first=kv['is_gpu_first'])
-  onnx.save(onnx_model, f"{args.network}_transformed_opt.onnx")
-  print(node_map) # TODO[ywshin]
+  onnx_model = InputSplit(-1, split, node_map=node_map).transform(onnx_model)
+  for kv in pipeline:
+    onnx_model = Pipeline(node_map=node_map).transform(onnx_model, kv['nodes'], stage=2, is_gpu_first=kv['is_gpu_first'])
+  onnx.save(onnx_model, f"{network}_transformed_opt.onnx")
 
-def run(args):
-  pass
+  return node_map
+
+def partition_graph(network):
+  onnx_model = onnx.load(f"{network}_transformed_opt.onnx")
+  graph = onnx_model.graph
+  input_node = onnx_model.graph.node[0]
+  shape_dict = {"input": get_arg_shape(graph, input_node, input_node.input[0])}
+  mod, params = relay.frontend.from_onnx(onnx_model, shape_dict)
+
+  # tvm/python/tvm/relay/op/strategy/cuda.py
+  desired_layouts = {
+    'nn.conv2d': ['NHWC', 'OHWI'],
+    'nn.max_pool2d': ['NHWC'],
+    'nn.global_avg_pool2d': ['NHWC'],
+  }
+  seq = tvm.transform.Sequential([relay.transform.RemoveUnusedFunctions(),
+                                  relay.transform.ConvertLayout(desired_layouts),
+                                  relay.transform.FoldConstant(),
+                                  relay.transform.OptimizeMemory(),
+                                  relay.transform.RemoveUnusedFunctions(),
+                                  ])
+  with tvm.transform.PassContext(opt_level=3):
+    mod = seq(mod)
+
+  from tvm.relay.op.contrib.pim import partition_for_pim
+  from tvm.contrib.pim import build_pim_kernels
+
+  mod = partition_for_pim(mod)
+
+  target = "cuda -libs=cudnn,cublas"
+  with tvm.transform.PassContext(opt_level=2):
+    lib = relay.build(mod, target, params=params)
+  os.system("mkdir -p ./tmp")
+  lib = build_pim_kernels(lib, "./tmp", f"compile-{network}.so")
+
+  return lib
+
+def load_module(network):
+  dev=tvm.cuda(0)
+  lib = tvm.runtime.load_module(f"compile-{network}.so")
+  module = graph_executor.GraphModule(lib["default"](dev))
+  with open(f"input.pkl","rb") as f:
+    x = pickle.load(f)
+
+  return module, x
+
+def check_input(network):
+  if not os.path.exists("input.pkl"):
+    x = get_random_input(network).half()
+    with open(f"input.pkl","wb") as f:
+      pickle.dump(x, f)
+
+def trace(network, mode):
+  check_input(network)
+
+  if mode == "run_opt":
+    postfix = ""
+  elif mode == "run_gpu_only":
+    postfix = "-org"
+  else:
+    raise Exception("Must NOT reach here!")
+
+  dev = 0
+  os.environ["TVM_USE_SIMULATOR"] = ""
+  os.environ["CUDA_VISIBLE_DEVICES"] = f"{dev}"
+
+  # generate trace for optimal solution
+  os.environ["TRACES_PATH"] = f"traces-{network}{postfix}"
+  os.environ["DYNAMIC_KERNEL_LIMIT_START"] = "1000000000"
+  os.system(f"LD_PRELOAD=/root/PIMFlow_accel-sim-framework/util/tracer_nvbit/tracer_tool/tracer_tool.so ./pimflow -m={mode} --trace -n={network}")
+
+  kernel_start, kernel_end = get_kernel_start_and_end(f"traces-{network}{postfix}")
+  os.environ["DYNAMIC_KERNEL_LIMIT_START"] = f"{kernel_start}"
+  os.environ["DYNAMIC_KERNEL_LIMIT_END"] = f"{kernel_end}"
+  os.system(f"LD_PRELOAD=/root/PIMFlow_accel-sim-framework/util/tracer_nvbit/tracer_tool/tracer_tool.so ./pimflow -m={mode} --trace -n={network}")
+  os.system(f"/root/PIMFlow_accel-sim-framework/util/tracer_nvbit/tracer_tool/traces-processing/post-traces-processing ./traces-{network}{postfix}/kernelslist")
+
+def run_opt(network, n=1):
+  module, x = load_module(network)
+
+  dev = tvm.cuda(0)
+  dtype = "float16"
+  module.set_input(**{"input" : tvm.nd.array(to_numpy(x).astype(dtype), device=dev)})
+
+  marker = load(name="marker", sources = ["./marker/marker_cuda.cpp", "./marker/marker_cuda_kernel.cu"])
+
+  for _ in range(n):
+    marker.forward(True)
+    module.run()
+    marker.forward(False)
+
+def run_gpu_only(network, n=1):
+  _, x = load_module(network)
+
+  if not os.path.exists(f"{network}.onnx"):
+    onnx_model = make_model(network)
+  else:
+    onnx_model = onnx.load(f"{network}.onnx")
+
+  shape_dict = {"input": x.shape}
+  mod, params = relay.frontend.from_onnx(onnx_model, shape_dict)
+
+  # tvm/python/tvm/relay/op/strategy/cuda.py
+  desired_layouts = {
+    'nn.conv2d': ['NHWC', 'OHWI'],
+    'nn.max_pool2d': ['NHWC'],
+    'nn.global_avg_pool2d': ['NHWC'],
+  }
+  seq = tvm.transform.Sequential([relay.transform.RemoveUnusedFunctions(),
+                                  relay.transform.ConvertLayout(desired_layouts),
+                                  relay.transform.FoldConstant(),
+                                  relay.transform.OptimizeMemory(),
+                                  relay.transform.RemoveUnusedFunctions(),
+                                  ])
+  with tvm.transform.PassContext(opt_level=3):
+    mod = seq(mod)
+
+  target = "cuda -libs=cudnn,cublas"
+  with tvm.transform.PassContext(opt_level=2):
+    lib = relay.build(mod, target, params=params)
+
+  dev = tvm.cuda(0)
+  module = graph_executor.GraphModule(lib["default"](dev))
+  dtype = "float16"
+  module.set_input(**{"input" : tvm.nd.array(to_numpy(x).astype(dtype), device=dev)})
+
+  marker = load(name="marker", sources = ["./marker/marker_cuda.cpp", "./marker/marker_cuda_kernel.cu"])
+
+  for _ in range(n):
+    marker.forward(True)
+    module.run()
+    marker.forward(False)
 
 if __name__ == '__main__':
   args = parse_arguments()
@@ -105,10 +284,51 @@ if __name__ == '__main__':
     profile(args)
   elif args.mode == "solve":
     solve(args)
+  elif args.mode == "transform":
+    extract_profiled_trace(args.network)
+    node_map = transform_graph(args.network)
+    with open(f"{args.network}_node_map.txt", "w") as f:
+      for k, v in node_map.items():
+        f.write(f"{k},{','.join(v)}\n")
+  elif args.mode == "build":
+    _ = partition_graph(args.network)
+  elif args.mode == "trace_opt":
+    trace(args.network, "run_opt")
+  elif args.mode == "trace_gpu_only":
+    trace(args.network, "run_gpu_only")
+  elif args.mode == "trace":
+    os.system(f"./pimflow -m=run_opt -n={args.network}")
+    os.system(f"./pimflow -m=run_gpu_only -n={args.network}")
+  elif args.mode == "run_opt":
+    if not args.trace:
+      os.environ["TVM_USE_SIMULATOR"] = "1"
+      os.environ["TVM_TRACES_PATH"] = f"traces-{args.network}/"
+      os.environ["TVM_NETWORK"] = f"{args.network}"
+      run_opt(args.network, 1)
+    else:
+      run_opt(args.network, 3)
+  elif args.mode == "run_gpu_only":
+    if not args.trace:
+      os.environ["TVM_USE_SIMULATOR"] = "1"
+      os.environ["TVM_TRACES_PATH"] = f"traces-{args.network}-org/"
+      os.environ["TVM_NETWORK"] = f"{args.network}"
+      run_gpu_only(args.network, 1)
+    else:
+      run_gpu_only(args.network, 3)
   elif args.mode == "run":
-    transform(args)
-    run(args)
+    os.system(f"./pimflow -m=transform -n={args.network}")
+    os.system(f"./pimflow -m=build -n={args.network}")
+    os.system(f"./pimflow -m=trace -n={args.network}")
+    os.system(f"./pimflow -m=run_opt --tvm_use_simulator -n={args.network}")
+    os.system(f"./pimflow -m=run_gpu_only --tvm_use_simulator -n={args.network}")
   elif args.mode == "stat":
-    stat(args)
+    if args.conv_only:
+      stat_conv_only(args.network)
+    else:
+      gpu_cycle = stat(args.network, gpu_only=True)
+      pimflow_cycle = stat(args.network)
+      print(f"GPU CYCLE: {gpu_cycle}")
+      print(f"PIMFLOW CYCLE: {pimflow_cycle}")
+      print(f"PIMFLOW SPEEDUP: {round(gpu_cycle / pimflow_cycle, 2)}")
   else:
     raise Exception("Must NOT reach here!")

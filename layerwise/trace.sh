@@ -19,10 +19,6 @@ ACTIVATION=${16}
 DEVICE_ID=${17}
 N_CHANNEL=${18}
 
-# assume docker is setup
-export TVM_HOME=/root/tvm
-export PYTHONPATH=$TVM_HOME/python:${PYTHONPATH}
-
 export DYNAMIC_KERNEL_LIMIT_START=1000000000
 LD_PRELOAD=/root/PIMFlow_accel-sim-framework/util/tracer_nvbit/tracer_tool/tracer_tool.so python3 /root/PIMFlow/layerwise/layerwise.py --oc=$OUT_CHANNELS --ic=$IN_CHANNELS --kh=$KH --kw=$KW --stride=$STRIDE --ph=$PH --pw=$PW --dilate=$DILATE --g=$GROUP --b --h=$IMAGE_HEIGHT --w=$IMAGE_WIDTH --dev=$CUDA_VISIBLE_DEVICES --activation=$ACTIVATION
 
