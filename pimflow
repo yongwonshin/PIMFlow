@@ -142,6 +142,7 @@ def transform_graph(network):
   onnx_model = InputSplit(-1, split, node_map=node_map).transform(onnx_model)
   for kv in pipeline:
     onnx_model = Pipeline(node_map=node_map).transform(onnx_model, kv['nodes'], stage=2, is_gpu_first=kv['is_gpu_first'])
+  onnx_model = OffloadFC().transform(onnx_model)
   onnx.save(onnx_model, f"{network}_transformed_opt.onnx")
 
   return node_map
@@ -319,8 +320,11 @@ if __name__ == '__main__':
     os.system(f"./pimflow -m=transform -n={args.network}")
     os.system(f"./pimflow -m=build -n={args.network}")
     os.system(f"./pimflow -m=trace -n={args.network}")
-    os.system(f"./pimflow -m=run_opt --tvm_use_simulator -n={args.network}")
-    os.system(f"./pimflow -m=run_gpu_only --tvm_use_simulator -n={args.network}")
+    if args.gpu_only:
+      os.system(f"./pimflow -m=run_gpu_only --tvm_use_simulator -n={args.network}")
+    else:
+      os.system(f"./pimflow -m=run_opt --tvm_use_simulator -n={args.network}")
+
   elif args.mode == "stat":
     if args.conv_only:
       stat_conv_only(args.network)

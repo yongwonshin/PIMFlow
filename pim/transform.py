@@ -1442,19 +1442,14 @@ class OffloadFC(TransformerBase):
     node.name = f"{node.name}_{par_exec_id()}_offloaded"
 
   def transform(self, model):
-    while True:
-      inferred_model = None
-      for node in model.graph.node:
-        print(node.name)
-        if self.satisfy(model.graph, node):
-          self.apply(model.graph, node)
-          self.reset()
-          print(MessageToDict(node))
-          inferred_model = onnx.shape_inference.infer_shapes(model)
-          par_exec_id(True)
-          break
-
-      if inferred_model is None:
+    for node in model.graph.node:
+      print(node.name)
+      if self.satisfy(model.graph, node):
+        self.apply(model.graph, node)
+        self.reset()
+        print(MessageToDict(node))
+        inferred_model = onnx.shape_inference.infer_shapes(model)
+        par_exec_id(True)
         break
 
       model = inferred_model
