@@ -250,7 +250,7 @@ for p in worst_pipelines:
 
 
 # final
- 
+
 os.system(f'mkdir /root/PIMFlow/{args.model}')
 OPTIMAL=[]
 
@@ -281,10 +281,10 @@ pipeline3_onnx=list(pipeline3_onnx.values)
 for i, k in enumerate(optimal_name):
   if k[1] == "split":
     if k[2] != 0:
-      os.system(f'cp -r /root/PIMFlow/layerwise_integrate_simulater/result_simulate_ae/{args.model}/{k[2]}_16/traces-{k[3]} /root/PIMFlow/{args.model}/trace-{k[0]}')
+      os.system(f'cp -r /root/PIMFlow/layerwise/result_simulate/{args.model}/{k[2]}_16/traces-{k[3]} /root/PIMFlow/{args.model}/trace-{k[0]}')
     optimal_name[i][3] = f'trace-{k[0]}'
     OPTIMAL.append(k)
-  
+
   elif k[1] == "pipeline" and k[3] != "pim":
     if k[2] == 1:
       for j, row in enumerate(pipeline1_onnx):
@@ -304,7 +304,7 @@ for i, k in enumerate(optimal_name):
           os.system(f'cp -r /root/PIMFlow/pipeline/result_simulate/{args.model}/{k[2]}_16/traces-{k[3]} /root/PIMFlow/{args.model}/trace-{k[0]}_1')
           os.system(f'cp -r /root/PIMFlow/pipeline/result_simulate/{args.model}/{k[2]}_16/traces-{k[4]} /root/PIMFlow/{args.model}/trace-{k[0]}_2')
           optimal_name[i][3] = f'trace-{k[0]}_1'
-          optimal_name[i][4] = f'trace-{k[0]}_2'  
+          optimal_name[i][4] = f'trace-{k[0]}_2'
           optimal_name[i].insert(1,optimal_name[i+1][0])
     elif k[2] == 3:
       for j, row in enumerate(pipeline3_onnx):
@@ -317,7 +317,7 @@ for i, k in enumerate(optimal_name):
           optimal_name[i].insert(0,optimal_name[i-1][0])
           optimal_name[i].insert(2,optimal_name[i+1][0])
     OPTIMAL.append(k)
-  
+
 
 with open(f'solve_{args.model}.csv', 'w',newline='') as f:
   write = csv.writer(f)

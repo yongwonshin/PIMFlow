@@ -18,7 +18,7 @@ def process(model):
   baseline = pd.read_csv(f'{model}_split100-baseline.csv', delimiter=',')
   gpu = pd.read_csv(f'{model}_split100_{args.n_channel}.csv', delimiter=',')
   head = ["kernel_name","N","I_c","H","W","O_c","kernel_size","pads","strides","group","dilations","bias","activation","GPU cycles","PIM cycles","TOTAL_cycle","RATIO","SPEED_UP"]
-
+  head_split = ["kernel_name","N","I_c","H","W","O_c","kernel_size","pads","strides","group","dilations","bias","activation","node_name","GPU cycles","PIM cycles","TOTAL_cycle","RATIO","SPEED_UP"]
   newton = pd.read_csv(f'../layerwise/newton_performance_{model}_{args.n_channel}.csv', delimiter=',')
 
   # head.append("TOTAL_cycel")
@@ -42,6 +42,7 @@ def process(model):
     DIC_GPU_only[key] = GPU[i][11+act]
     DIC_PIM_base[key] = NEWTON[i][12+act]
 
+  DIC_node_name_max={}
   DIC_GPU_max={}
   DIC_PIM_max={}
   DIC_TOT_max={}
@@ -51,6 +52,7 @@ def process(model):
   MAX = [list(row) for row in max_.values]
   for i in range(len(MAX)):
     key = str(MAX[i][1]) + str(MAX[i][2]) + str(MAX[i][4]) + str(MAX[i][5]) + str(MAX[i][6][3]) + str(MAX[i][7]) + str(MAX[i][8])
+    DIC_node_name_max[key] = MAX[i][0]
     DIC_GPU_max[key] = MAX[i][11+act]
     DIC_PIM_max[key] = MAX[i][12+act]
     DIC_TOT_max[key] = MAX[i][13+act]
@@ -81,6 +83,7 @@ def process(model):
 
   for i in range(len(END_max)):
     key = str(END_max[i][2]) + str(END_max[i][5]) + str(END_max[i][4]) + str(END_max[i][6]) + str(END_max[i][7][3]) + str(END_max[i][8]) + str(END_max[i][9])
+    END_max[i].append(DIC_node_name_max.get(key, 0))
     END_max[i].append(DIC_GPU_max.get(key, 0))
     END_max[i].append(DIC_PIM_max.get(key, 0))
     END_max[i].append(DIC_TOT_max.get(key, 0))
@@ -89,7 +92,7 @@ def process(model):
 
   with open(f'max_performance_end_to_end_{model}_{args.n_channel}.csv', 'w',newline='') as f:
     write = csv.writer(f)
-    write.writerow(head)
+    write.writerow(head_split)
     write.writerows(END_max)
 
   with open(f'baseline_end_to_end_{model}_{args.n_channel}.csv', 'w',newline='') as f:

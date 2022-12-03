@@ -167,25 +167,18 @@ def statistics(configs_gpu,configs_pim,configs_all):
     end = 0
     with open(fname) as f:
       lines = f.readlines()
-      for l in lines:
-        if l.find("forward_kernel_cuda_start") != -1:
-          start += 1
-        elif l.find("forward_kernel_cuda_end") != -1:
-          end += 1
-      # if start != 3 or end != 3:
-      #   print(f"SKIP: {fname}")
-      #   continue
 
+      tot_runs = []
       runs = []
+      energy = 0
       for i, l in enumerate(lines):
-        if l.find("forward_kernel_cuda_end") != -1:
-          runs.append(int(lines[i-1].split("=")[1]))
+        if l.find("gpu_tot_sim_cycle") != -1:
+          tot_runs.append(int(lines[i].split("=")[1]))
+        if l.find("kernel_name") != -1 and l.find("forward_kernel_cuda") == -1:
+          runs.append(int(lines[i+1].split("=")[1]))
       # assert len(runs) == 3
-      for i in range(len(runs)-1, 0, -1):
-        runs[i] -= runs[i-1]
-      for i in range(len(runs)):
-        runs[i] -= args.kernel_launch_latency * 2
-      gpu_cycles[configs_gpu[c][0]]=int(np.median(runs))
+      gpu_cycles[configs_gpu[c][0]]=int(tot_runs[len(tot_runs)-1])
+
   with open(f'{args.model}_split{args.split_ratio}_{args.n_channel}.csv','w', newline='') as f:
     wr = csv.writer(f)
     wr.writerow(['kernel_name','I_c','O_c','H','W','kernel_size','pads','strides','group','dilations','bias','activation','GPU cycles','PIM cycles'])
@@ -205,25 +198,21 @@ def statistics(configs_gpu,configs_pim,configs_all):
       end = 0
       with open(fname) as f:
         lines = f.readlines()
-        for l in lines:
-          if l.find("forward_kernel_cuda_start") != -1:
-            start += 1
-          elif l.find("forward_kernel_cuda_end") != -1:
-            end += 1
+
         # if start != 3 or end != 3:
         #   print(f"SKIP: {fname}")
         #   continue
-
+        tot_runs = []
         runs = []
+        energy = 0
         for i, l in enumerate(lines):
-          if l.find("forward_kernel_cuda_end") != -1:
-            runs.append(int(lines[i-1].split("=")[1]))
+          if l.find("gpu_tot_sim_cycle") != -1:
+            tot_runs.append(int(lines[i].split("=")[1]))
+          if l.find("kernel_name") != -1 and l.find("forward_kernel_cuda") == -1:
+            runs.append(int(lines[i+1].split("=")[1]))
         # assert len(runs) == 3
-        for i in range(len(runs)-1, 0, -1):
-          runs[i] -= runs[i-1]
-        for i in range(len(runs)):
-          runs[i] -= args.kernel_launch_latency * 2
-        gpu_cycles[configs_gpu[c][0]]=int(np.median(runs))
+        gpu_cycles[configs_gpu[c][0]]=int(tot_runs[len(tot_runs)-1])
+
     with open(f'{args.model}_split{args.split_ratio}-baseline.csv','w', newline='') as f:
       wr = csv.writer(f)
       wr.writerow(['kernel_name','I_c','O_c','H','W','kernel_size','pads','strides','group','dilations','bias','activation','GPU cycles','PIM cycles'])

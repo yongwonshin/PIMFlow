@@ -18,4 +18,5 @@ compile-*.so
 *.pkl
 *.stats
 *.log
+*.err
 *_node_map.txt

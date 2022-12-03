@@ -43,5 +43,5 @@ for s, t in r:
 
 assert len(r) == args.iteration
 
-print(r[0][0], r[2][1])
+print(r[2][0]+1, r[2][1]-1)
 
