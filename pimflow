@@ -81,10 +81,13 @@ def get_gpu_cycle(path):
   return cycle
 
 def get_pim_cycle(path):
+  cycle = 0
+  scale = scale = 1.605882353
   with open(path) as f:
     for line in f:
       if "Cycle" in line:
-        return int(line.split(" ")[1].strip())
+        cycle = scale * int(line.split(" ")[1].strip())
+  return cycle
 
 def stat(network, gpu_only=False):
   postfix = ""
@@ -94,17 +97,17 @@ def stat(network, gpu_only=False):
   par_cycle = 0
   other_cycle = get_gpu_cycle(f"traces-{network}{postfix}/sim.txt")
   i = 0
-  while gpu_only and True:
+  while not gpu_only and True:
     found = False
     gpu_cycle = 0
     pim_cycle = 0
-    gpu_file = f"traces-{network}/sim.{i}.gpu.txt"
-    pim_file = f"traces-{network}/sim.{i}.pim.txt"
+    gpu_file = f"traces-{network}{postfix}/sim.{i}.gpu.txt"
+    pim_file = f"traces-{network}{postfix}/sim.{i}.pim.txt"
     if os.path.exists(gpu_file):
       gpu_cycle = get_gpu_cycle(gpu_file)
       found = True
     if os.path.exists(pim_file):
-      pim_cycle = get_gpu_cycle(pim_file)
+      pim_cycle = get_pim_cycle(pim_file)
       found = True
     cycle = max(gpu_cycle, pim_cycle)
     par_cycle += cycle
