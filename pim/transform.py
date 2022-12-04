@@ -1444,6 +1444,7 @@ class OffloadFC(TransformerBase):
   def transform(self, model):
     for node in model.graph.node:
       print(node.name)
+      inferred_model = None
       if self.satisfy(model.graph, node):
         self.apply(model.graph, node)
         self.reset()
@@ -1452,5 +1453,6 @@ class OffloadFC(TransformerBase):
         par_exec_id(True)
         break
 
-      model = inferred_model
+      if inferred_model is not None:
+        model = inferred_model
     return model
