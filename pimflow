@@ -298,8 +298,8 @@ if __name__ == '__main__':
   elif args.mode == "trace_gpu_only":
     trace(args.network, "run_gpu_only")
   elif args.mode == "trace":
-    os.system(f"./pimflow -m=run_opt -n={args.network}")
-    os.system(f"./pimflow -m=run_gpu_only -n={args.network}")
+    os.system(f"./pimflow -m=trace_opt -n={args.network}")
+    os.system(f"./pimflow -m=trace_gpu_only -n={args.network}")
   elif args.mode == "run_opt":
     if not args.trace:
       os.environ["TVM_USE_SIMULATOR"] = "1"
@@ -321,9 +321,9 @@ if __name__ == '__main__':
     os.system(f"./pimflow -m=build -n={args.network}")
     os.system(f"./pimflow -m=trace -n={args.network}")
     if args.gpu_only:
-      os.system(f"./pimflow -m=run_gpu_only --tvm_use_simulator -n={args.network}")
+      os.system(f"./pimflow -m=run_gpu_only -n={args.network}")
     else:
-      os.system(f"./pimflow -m=run_opt --tvm_use_simulator -n={args.network}")
+      os.system(f"./pimflow -m=run_opt -n={args.network}")
 
   elif args.mode == "stat":
     if args.conv_only:
