@@ -274,10 +274,18 @@ for i, k in enumerate(optimal_name):
       optimal_name[i+1][3] = "pim"
 
 
-
-pipeline1_onnx=list(pipeline1_onnx.values)
-pipeline2_onnx=list(pipeline2_onnx.values)
-pipeline3_onnx=list(pipeline3_onnx.values)
+if pipeline1_onnx is not None:
+  pipeline1_onnx=list(pipeline1_onnx.values)
+else:
+  pipeline1_onnx = []
+if pipeline2_onnx is not None:
+  pipeline2_onnx=list(pipeline2_onnx.values)
+else:
+  pipeline2_onnx = []
+if pipeline3_onnx is not None:
+  pipeline3_onnx=list(pipeline3_onnx.values)
+else:
+  pipeline3_onnx = []
 for i, k in enumerate(optimal_name):
   if k[1] == "split":
     if k[2] != 0:
