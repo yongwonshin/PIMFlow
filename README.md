@@ -18,7 +18,7 @@ Software pre-requisites for installing from the source should be satisfied for t
 
 You can install all dependencies by following this document.
 
-Firstly, make sure CUDN is installed in your system:
+Firstly, make sure CUDA is installed in your system:
 ```bash
 export CUDA_INSTALL_PATH=/usr/local/cuda # set it to your CUDA installation path
 nvcc --version
