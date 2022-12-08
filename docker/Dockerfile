@@ -37,9 +37,9 @@ RUN apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/cuda/
                     libedit-dev && \
     python3 -m pip install -U --force-reinstall pip && \
     #pip3 install torch torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/cu113 \
-    pip3 install torch==1.12.1+cu113 \
-                 torchvision==0.13.1+cu113 \
-                 torchaudio==0.12.1 --extra-index-url https://download.pytorch.org/whl/cu113 \
+    pip install  torch==1.11.0+cu113 \
+                 torchvision==0.12.0+cu113 \
+                 torchaudio==0.11.0 --extra-index-url https://download.pytorch.org/whl/cu113 \
                  pyyaml==5.1 \
                  onnx \
                  plotly \
