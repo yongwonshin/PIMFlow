@@ -36,9 +36,9 @@ Note: you need to use specific PyTorch version (= 1.12.1). Later version could g
 
 ```bash
 python3 -m pip install -U --force-reinstall pip
-pip3 install torch==1.12.1+cu113 \
-             torchvision==0.13.1+cu113 \
-             torchaudio==0.12.1 --extra-index-url https://download.pytorch.org/whl/cu113
+pip install  torch==1.11.0+cu113 \
+             torchvision==0.12.0+cu113 \
+             torchaudio==0.11.0 --extra-index-url https://download.pytorch.org/whl/cu113
 pip3 install pyyaml==5.1 onnx plotly psutil pandas decorator attrs scipy
 ```
 
