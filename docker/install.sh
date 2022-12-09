@@ -35,6 +35,10 @@ pip install -e .
 cd "$PIMFLOW_DIR/pim"
 # Generate binary file: $PIMFLOW_DIR/pim/pim_codegen
 make -j
-# Extract mobilenet trace
+# Extract network traces
 cd "$PIMFLOW_DIR"
 tar -xzf ./data/mobilenet-v2.tar.gz -C .
+tar -xzf ./data/efficientnet-v1-b0.tar.gz -C .
+tar -xzf ./data/mnasnet-1.0.tar.gz -C .
+tar -xzf ./data/resnet-50.tar.gz -C .
+tar -xzf ./data/vgg-16.tar.gz -C .
