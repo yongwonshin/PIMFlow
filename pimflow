@@ -322,10 +322,12 @@ if __name__ == '__main__':
   elif args.mode == "run":
     os.system(f"./pimflow -m=transform -n={args.network}")
     os.system(f"./pimflow -m=build -n={args.network}")
-    os.system(f"./pimflow -m=trace -n={args.network}")
+    # os.system(f"./pimflow -m=trace -n={args.network}")
     if args.gpu_only:
+      os.system(f"./pimflow -m=trace_gpu_only -n={args.network}")
       os.system(f"./pimflow -m=run_gpu_only -n={args.network}")
     else:
+      os.system(f"./pimflow -m=trace_opt -n={args.network}")
       os.system(f"./pimflow -m=run_opt -n={args.network}")
 
   elif args.mode == "stat":
