@@ -82,7 +82,7 @@ def get_gpu_cycle(path):
 
 def get_pim_cycle(path):
   cycle = 0
-  scale = scale = 1.605882353
+  scale = 1.605882353
   with open(path) as f:
     for line in f:
       if "Cycle" in line:
@@ -95,7 +95,7 @@ def stat(network, gpu_only=False):
     postfix = "-org"
   other_cycle = 0
   par_cycle = 0
-  other_cycle = get_gpu_cycle(f"traces-{network}{postfix}/sim.txt")
+  other_cycle = get_gpu_cycle(f"traces-{network}{postfix}/sim.txt") / 3
   i = 0
   while not gpu_only and True:
     found = False
@@ -114,6 +114,7 @@ def stat(network, gpu_only=False):
     i += 1
     if not found:
       break
+  print(other_cycle, par_cycle)
   return other_cycle + par_cycle
 
 def extract_profiled_trace(model: str):
@@ -166,7 +167,7 @@ def partition_graph(network):
   seq = tvm.transform.Sequential([relay.transform.RemoveUnusedFunctions(),
                                   relay.transform.ConvertLayout(desired_layouts),
                                   relay.transform.FoldConstant(),
-                                  relay.transform.OptimizeMemory(),
+                                  # relay.transform.OptimizeMemory(),
                                   relay.transform.RemoveUnusedFunctions(),
                                   ])
   with tvm.transform.PassContext(opt_level=3):
@@ -226,9 +227,55 @@ def trace(network, mode):
   os.system(f"/root/PIMFlow_accel-sim-framework/util/tracer_nvbit/tracer_tool/traces-processing/post-traces-processing ./traces-{network}{postfix}/kernelslist")
 
 def run_opt(network, n=1):
-  module, x = load_module(network)
+  # module, x = load_module(network)
+
+  # dev = tvm.cuda(0)
+  # dtype = "float16"
+  # module.set_input(**{"input" : tvm.nd.array(to_numpy(x).astype(dtype), device=dev)})
+
+  # marker = load(name="marker", sources = ["./marker/marker_cuda.cpp", "./marker/marker_cuda_kernel.cu"])
+
+  # for _ in range(n):
+  #   marker.forward(True)
+  #   module.run()
+  #   marker.forward(False)
+
+  _, x = load_module(network)
+
+  onnx_model = onnx.load(f"{network}_transformed_opt.onnx")
+  graph = onnx_model.graph
+  input_node = onnx_model.graph.node[0]
+  shape_dict = {"input": get_arg_shape(graph, input_node, input_node.input[0])}
+  mod, params = relay.frontend.from_onnx(onnx_model, shape_dict)
+
+  # tvm/python/tvm/relay/op/strategy/cuda.py
+  desired_layouts = {
+    'nn.conv2d': ['NHWC', 'OHWI'],
+    'nn.max_pool2d': ['NHWC'],
+    'nn.global_avg_pool2d': ['NHWC'],
+  }
+  seq = tvm.transform.Sequential([relay.transform.RemoveUnusedFunctions(),
+                                  relay.transform.ConvertLayout(desired_layouts),
+                                  relay.transform.FoldConstant(),
+                                  # relay.transform.OptimizeMemory(),
+                                  relay.transform.RemoveUnusedFunctions(),
+                                  ])
+  with tvm.transform.PassContext(opt_level=3):
+    mod = seq(mod)
+
+  from tvm.relay.op.contrib.pim import partition_for_pim
+  from tvm.contrib.pim import build_pim_kernels
+
+  mod = partition_for_pim(mod)
+
+  target = "cuda -libs=cudnn,cublas"
+  with tvm.transform.PassContext(opt_level=2):
+    lib = relay.build(mod, target, params=params)
+  os.system("mkdir -p ./tmp")
+  lib = build_pim_kernels(lib, "./tmp", f"compile-{network}.so")
 
   dev = tvm.cuda(0)
+  module = graph_executor.GraphModule(lib["default"](dev))
   dtype = "float16"
   module.set_input(**{"input" : tvm.nd.array(to_numpy(x).astype(dtype), device=dev)})
 
@@ -259,7 +306,7 @@ def run_gpu_only(network, n=1):
   seq = tvm.transform.Sequential([relay.transform.RemoveUnusedFunctions(),
                                   relay.transform.ConvertLayout(desired_layouts),
                                   relay.transform.FoldConstant(),
-                                  relay.transform.OptimizeMemory(),
+                                  # relay.transform.OptimizeMemory(),
                                   relay.transform.RemoveUnusedFunctions(),
                                   ])
   with tvm.transform.PassContext(opt_level=3):

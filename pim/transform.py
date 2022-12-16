@@ -1439,20 +1439,72 @@ class OffloadFC(TransformerBase):
     return False
 
   def apply(self, graph, node):
-    node.name = f"{node.name}_{par_exec_id()}_offloaded"
+    new_node = None
+    new_name = f"{node.name}_{par_exec_id()}_offloaded"
+
+    if node.output[0] == "output":
+      node.name = new_name
+      return
+
+    new_output = f"token_{gvn()}"
+    if node.op_type == "Conv":
+      new_node = onnx.helper.make_node(
+        'Conv',
+        name=new_name,
+        inputs=node.input,
+        outputs=[new_output],
+        dilations=find_attribute_by_name(node, 'dilations').ints,
+        group=find_attribute_by_name(node, 'group').i,
+        kernel_shape=find_attribute_by_name(node, 'kernel_shape').ints,
+        pads=find_attribute_by_name(node, 'pads').ints,
+        strides=find_attribute_by_name(node, 'strides').ints,
+      )
+    elif node.op_type == "Gemm":
+      new_node = onnx.helper.make_node(
+        'Gemm',
+        name=new_name,
+        inputs=node.input,
+        outputs=[new_output],
+      )
+    elif node.op_type == "MatMul":
+      new_node = onnx.helper.make_node(
+        'MatMul',
+        name=new_name,
+        inputs=node.input,
+        outputs=[new_output],
+      )
+    else:
+      raise Exception("Must NOT reach here!")
+
+    assert new_node is not None
+
+    n = find_node_index_by_name(graph, node.name)
+    graph.node.insert(n, new_node)
+
+    next_nodes = find_nodes_by_arg_name(graph, node.output[0])
+    next_nodes.remove(node)
+    for n in next_nodes:
+      for i in range(len(n.input)):
+        if n.input[i] == node.output[0]:
+          n.input[i] = new_output
+
+    graph.node.remove(node)
 
   def transform(self, model):
-    for node in model.graph.node:
-      print(node.name)
+    while True:
       inferred_model = None
-      if self.satisfy(model.graph, node):
-        self.apply(model.graph, node)
-        self.reset()
-        print(MessageToDict(node))
-        inferred_model = onnx.shape_inference.infer_shapes(model)
-        par_exec_id(True)
+      for node in model.graph.node:
+        print(node.name)
+        if self.satisfy(model.graph, node):
+          self.apply(model.graph, node)
+          self.reset()
+          print(MessageToDict(node))
+          inferred_model = onnx.shape_inference.infer_shapes(model)
+          par_exec_id(True)
+          break
+
+      if inferred_model is None:
         break
 
-      if inferred_model is not None:
-        model = inferred_model
+      model = inferred_model
     return model
