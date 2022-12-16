@@ -42,3 +42,14 @@ tar -xzf ./data/efficientnet-v1-b0.tar.gz -C .
 tar -xzf ./data/mnasnet-1.0.tar.gz -C .
 tar -xzf ./data/resnet-50.tar.gz -C .
 tar -xzf ./data/vgg-16.tar.gz -C .
+
+tar -xzf ./data/traces-efficientnet-v1-b0-org.tar.gz -C .
+tar -xzf ./data/traces-efficientnet-v1-b0.tar.gz -C .
+tar -xzf ./data/traces-mobilenet-v2-org.tar.gz -C .
+tar -xzf ./data/traces-mobilenet-v2.tar.gz -C .
+tar -xzf ./data/traces-mnasnet-1.0-org.tar.gz -C .
+tar -xzf ./data/traces-mnasnet-1.0.tar.gz -C .
+tar -xzf ./data/traces-resnet-50-org.tar.gz -C .
+tar -xzf ./data/traces-resnet-50.tar.gz -C .
+tar -xzf ./data/traces-vgg-16-org.tar.gz -C .
+tar -xzf ./data/traces-vgg-16.tar.gz -C .
