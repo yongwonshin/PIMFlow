@@ -32,7 +32,7 @@ sudo apt-get install -y --no-install-recommends python3-dev ca-certificates g++ 
 
 Next, install Python (>= 3.8) dependencies.
 
-Note: you need to use specific PyTorch version (= 1.12.1). Later version could generate different node name that cannot be processed by the current version.
+Note: you need to use specific PyTorch version (= 1.11.0). Later version could generate different node name that cannot be processed by the current version.
 
 ```bash
 python3 -m pip install -U --force-reinstall pip
