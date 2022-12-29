@@ -29,6 +29,7 @@ cd "$RAM_DIR"
 make -j
 cd "$HOME"
 git clone https://github.com/yongwonshin/PIMFlow.git
+git checkout v0.3
 PIMFLOW_DIR="$HOME/PIMFlow"
 cd "$PIMFLOW_DIR"
 pip install -e .
