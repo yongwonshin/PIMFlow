@@ -23,6 +23,10 @@ def parse_arguments():
   parser.add_argument("--gpu_only", action="store_true", help="execute only on GPU")
   parser.add_argument("--conv_only", action="store_true", help="execute only convolution layers")
   parser.add_argument("--trace", action="store_true", help="only trace")
+  parser.add_argument("--accel_sim_gpu", choices=["SM75_RTX2060"], default="SM75_RTX2060")
+  parser.add_argument("--accel_sim_kernel_launch_latency", type=int, default=5010)
+  parser.add_argument("--accel_sim_n_channel", type=int, default=16)
+  parser.add_argument("--ramulator_disable_gwrite_latency_hiding", action="store_true")
   args = parser.parse_args()
 
   if args.mode == "profile" and (args.transform is None):
@@ -62,9 +66,9 @@ def make_model(network):
 
 def profile(args):
   if args.transform == "split":
-    os.system(f"cd layerwise && ./profile.sh {args.network}")
+    os.system(f"cd layerwise && ./profile.sh {args.network} {args.accel_sim_gpu} {args.accel_sim_kernel_launch_latency} {args.accel_sim_n_channel}")
   elif args.transform == "pipeline":
-    os.system(f"cd pipeline && ./profile.sh {args.network}")
+    os.system(f"cd pipeline && ./profile.sh {args.network} {args.accel_sim_gpu} {args.accel_sim_kernel_launch_latency} {args.accel_sim_n_channel}")
 
 def solve(args):
   os.system(f"cd solve && ./solve.sh {args.network}")
@@ -327,8 +331,13 @@ def run_gpu_only(network, n=1):
     module.run()
     marker.forward(False)
 
+def set_envs(args):
+  if args.ramulator_disable_gwrite_latency_hiding:
+    os.environ["RAMULATOR_DISABLE_GWRITE_LATENCY_HIDING"] = "1"
+
 if __name__ == '__main__':
   args = parse_arguments()
+  set_envs(args)
   make_model(args.network)
   if args.mode == "profile":
     profile(args)

@@ -15,12 +15,10 @@ IMAGE_WIDTH=${13}
 N_CHANNEL=${14}
 N_GWRITE=${15}
 
-../pim/pim_codegen -oc $OUT_CHANNELS -ic $IN_CHANNELS -h $IMAGE_HEIGHT -w $IMAGE_WIDTH -kh $KH -kw $KW -ph $PH -pw $PW -stride $STRIDE -name PIM_trace_partition_$N_CHANNEL -n_channel $N_CHANNEL -gw $N_GWRITE
+../pim/pim_codegen -oc $OUT_CHANNELS -ic $IN_CHANNELS -h $IMAGE_HEIGHT -w $IMAGE_WIDTH -kh $KH -kw $KW -ph $PH -pw $PW -stride $STRIDE -name PIM_trace_partition_${N_CHANNEL}_${N_GWRITE} -n_channel $N_CHANNEL -gw $N_GWRITE
 
-# rm -rf $NAME
 mkdir -p $NAME
 
-for i in ./PIM_trace_partition_$N_CHANNEL-*.pim ; do
+for i in ./PIM_trace_partition_${N_CHANNEL}_${N_GWRITE}-*.pim; do
     mv $i $NAME
 done
-

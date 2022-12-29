@@ -30,7 +30,7 @@ MODEL_LIST = [
   'vit-b-16', 'vit-l-16',
   # convnext
   'convnext-tiny', 'convnext-small', 'convnext-base', 'convnext-large',
-  'toy', 'layer',
+  'toy', 'memopt',
 ]
 
 GVN = -1
@@ -272,6 +272,37 @@ class Net(torch.nn.Module):
     x = self.linear(x)
     return x
 
+class NetMemOptTest(torch.nn.Module):
+  def __init__(self):
+    super(NetMemOptTest, self).__init__()
+    self.conv1 = torch.nn.Conv2d(3, 64, 3, padding=1, stride=1, bias=True)
+    self.act1 = torch.nn.Hardtanh(0, 6)
+    self.conv2 = torch.nn.Conv2d(64, 64, 3, padding=1, stride=1, groups=1, bias=True)
+    self.act2 = torch.nn.Hardtanh(0, 6)
+    self.conv3 = torch.nn.Conv2d(64, 64, 3, padding=1, stride=1, bias=True)
+    self.act3 = torch.nn.Hardtanh(0, 6)
+    self.gap = torch.nn.AvgPool2d(16)
+    self.flatten = torch.nn.Flatten()
+    self.linear = torch.nn.Linear(64, 10)
+
+  def forward(self, x):
+    x = self.conv1(x)
+    x = self.act1(x)
+    # x_ = torch.sigmoid(x)
+    # x = torch.mul(x, x_)
+    x = self.conv2(x)
+    x = self.act2(x)
+    # x_ = torch.sigmoid(x)
+    # x = torch.mul(x, x_)
+    x = self.conv3(x)
+    x = self.act3(x)
+    # x_ = torch.sigmoid(x)
+    # x = torch.mul(x, x_)
+    x = self.gap(x)
+    x = self.flatten(x)
+    x = self.linear(x)
+    return x
+
 def calc_pads(node):
   dilations=list(find_attribute_by_name(node, 'dilations').ints)
   kernel_shape=list(find_attribute_by_name(node, 'kernel_shape').ints)
@@ -412,6 +443,8 @@ def get_torch_model(name):
     model = models.convnext_large(pretrained=True)
   elif name == "toy":
     model = Net()
+  elif name == "memopt":
+    model = NetMemOptTest()
   else:
     raise Exception(f"Unsupported model: {name}")
   return model
@@ -422,7 +455,7 @@ def get_random_input(name):
     x = torch.randn(1, 3, 528, 528).cuda()
   elif name == "inception-v3":
     x = torch.randn(1, 3, 299, 299).cuda()
-  elif name == "toy":
+  elif name in ["toy", "memopt"]:
     x = torch.randn(1, 3, 16, 16).cuda()
   return x
 
