@@ -14,6 +14,8 @@ import tvm.relay as relay
 from tvm.contrib import graph_executor
 from torch.utils.cpp_extension import load
 import pickle
+import csv
+import pandas as pd
 
 def parse_arguments():
   parser = argparse.ArgumentParser()
@@ -22,6 +24,7 @@ def parse_arguments():
   parser.add_argument("-n", "--network", help="target network", choices=MODEL_LIST, required=True)
   parser.add_argument("--gpu_only", action="store_true", help="execute only on GPU")
   parser.add_argument("--conv_only", action="store_true", help="execute only convolution layers")
+  parser.add_argument("--layerwise", action="store_true", help="layerwise performance breakdown")
   parser.add_argument("--trace", action="store_true", help="only trace")
   parser.add_argument("--accel_sim_gpu", choices=["SM75_RTX2060"], default="SM75_RTX2060")
   parser.add_argument("--accel_sim_kernel_launch_latency", type=int, default=5010)
@@ -73,8 +76,33 @@ def profile(args):
 def solve(args):
   os.system(f"cd solve && ./solve.sh {args.network} {args.accel_sim_n_channel}")
 
-def stat_conv_only(network):
+def stat_conv_only(args):
   os.system(f"cd solve && ./stat.sh {args.network} {args.accel_sim_n_channel}")
+
+def stat_layerwise(args):
+  newtonp = f"layerwise/newton_performance_{args.network}_{args.accel_sim_n_channel}_1_noopt.csv"
+  mddp = f"layerwise/newton_performance_{args.network}_{args.accel_sim_n_channel}_4.csv"
+
+  if not os.path.exists(newtonp) or not os.path.exists(mddp):
+    print(f"Error: Run this first: ./pimflow -m=profile -t=split -n={args.network} --accel_sim_n_channel={args.accel_sim_n_channel}")
+    return
+
+  newtonp = pd.read_csv(newtonp)
+  mddp = pd.read_csv(mddp)
+
+  NEWTONP = list(filter(lambda row: int(row[8]) == 1, [list(row) for row in newtonp.values]))
+  MDDP = list(filter(lambda row: int(row[8]) == 1, [list(row) for row in mddp.values]))
+
+  n = len(NEWTONP)
+  assert n == len(MDDP)
+
+  RESULT = []
+  for i in range(n):
+    RESULT.append([NEWTONP[i][16], MDDP[i][16], MDDP[i][17]])
+
+  with open(f"{args.network}_layerwise.csv", "w") as f:
+    write = csv.writer(f)
+    write.writerows(RESULT)
 
 def get_gpu_cycle(path):
   cycle = 0
@@ -387,7 +415,9 @@ if __name__ == '__main__':
       os.system(f"./pimflow -m=run_opt -n={args.network}")
 
   elif args.mode == "stat":
-    if args.conv_only:
+    if args.layerwise:
+      stat_layerwise(args)
+    elif args.conv_only:
       stat_conv_only(args)
     else:
       gpu_cycle = stat(args.network, gpu_only=True)
