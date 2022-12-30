@@ -268,7 +268,7 @@ def pim(configs_all):
     wr.writerow(['kernel_name','I_c','O_c','H','W','kernel_size','pads','strides','group','dilations','bias','activation','GPU cycles','PIM cycles'])
     for c in range(len(configs_all)):
       pname = f"{configs_all[c][0]}_{args.n_channel}/PIM_trace_partition_{args.n_channel}_{args.n_gwrite}-{32 - args.n_channel}.pim"
-      cyc = os.popen(f"/root/PIMFlow_ramulator/ramulator /root/PIMFlow_ramulator/configs/HBM-config.cfg --mode=dram {pname} | grep Cycle").read()
+      cyc = os.popen(f"RAMULATOR_DISABLE_GWRITE_LATENCY_HIDING=1 /root/PIMFlow_ramulator/ramulator /root/PIMFlow_ramulator/configs/HBM-config.cfg --mode=dram {pname} | grep Cycle").read()
       cyc = re.sub(r'[^0-9]', '', cyc)
       pim_cycles_noopt[configs_all[c][0]]=int(cyc) * scale
       print(pim_cycles_noopt[configs_all[c][0]])
@@ -328,7 +328,7 @@ def update_pim(configs_all, split_ratio):
       idx = i
 
     pname = f"{configs_all[idx][0]}_{args.n_channel}/PIM_trace_partition_{args.n_channel}_{args.n_gwrite}-{32 - args.n_channel}.pim"
-    cyc = os.popen(f"/root/PIMFlow_ramulator/ramulator /root/PIMFlow_ramulator/configs/HBM-config.cfg --mode=dram {pname} | grep Cycle").read()
+    cyc = os.popen(f"RAMULATOR_DISABLE_GWRITE_LATENCY_HIDING=1 /root/PIMFlow_ramulator/ramulator /root/PIMFlow_ramulator/configs/HBM-config.cfg --mode=dram {pname} | grep Cycle").read()
     cyc = re.sub(r'[^0-9]', '', cyc)
 
     pim_cycles_noopt[c[0]] = int(cyc) * scale
