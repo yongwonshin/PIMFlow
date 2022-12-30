@@ -25,6 +25,7 @@ def parse_arguments():
   parser.add_argument("--gpu_only", action="store_true", help="execute only on GPU")
   parser.add_argument("--conv_only", action="store_true", help="execute only convolution layers")
   parser.add_argument("--layerwise", action="store_true", help="layerwise performance breakdown")
+  parser.add_argument("--split_ratio", action="store_true", help="distribution of MD-DP splitting ratios")
   parser.add_argument("--trace", action="store_true", help="only trace")
   parser.add_argument("--accel_sim_gpu", choices=["SM75_RTX2060"], default="SM75_RTX2060")
   parser.add_argument("--accel_sim_kernel_launch_latency", type=int, default=5010)
@@ -103,6 +104,32 @@ def stat_layerwise(args):
   with open(f"{args.network}_layerwise.csv", "w") as f:
     write = csv.writer(f)
     write.writerows(RESULT)
+
+def stat_split_ratio(args):
+  networks = ["efficientnet-v1-b0", "mobilenet-v2", "mnasnet-1.0", "resnet-50", "vgg-16"]
+
+  RESULT = [0] * 11
+  RESULT_R = [0] * 11
+  for network in networks:
+    split = f"layerwise/max_performance_{network}_{args.accel_sim_n_channel}_4.csv"
+
+    if not os.path.exists(split):
+      print(f"Error: Run this first: ./pimflow -m=profile -t=split -n={network} --accel_sim_n_channel={args.accel_sim_n_channel}")
+      continue
+
+    split = pd.read_csv(split)
+    SPLIT = list(filter(lambda row: int(row[8]) == 1, [list(row) for row in split.values]))
+
+    for row in SPLIT:
+      assert int(row[15]) % 10 == 0
+      RESULT[int(row[15]) // 10] += 1
+
+  tot = sum(RESULT)
+  for i, r in enumerate(RESULT):
+    RESULT_R[i] = round(r / tot * 100)
+
+  print(RESULT)
+  print(RESULT_R)
 
 def get_gpu_cycle(path):
   cycle = 0
@@ -417,6 +444,8 @@ if __name__ == '__main__':
   elif args.mode == "stat":
     if args.layerwise:
       stat_layerwise(args)
+    elif args.split_ratio:
+      stat_split_ratio(args)
     elif args.conv_only:
       stat_conv_only(args)
     else:
