@@ -86,7 +86,8 @@ def get_gpu_cycle(path):
 
 def get_pim_cycle(path):
   cycle = 0
-  scale = 1.605882353
+  # scale = 1.605882353 # HBM
+  scale = 1.56 # GDDR6
   with open(path) as f:
     for line in f:
       if "Cycle" in line:

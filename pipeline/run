@@ -125,7 +125,8 @@ def simulate(configs_gpu):
 
 def statistics(configs_gpu, configs_pim, configs_all):
   if args.gpgpusim_config == "SM75_RTX2060":
-    scale=1.605882353
+    # scale=1.605882353 # HBM
+    scale = 1.56 # GDDR6
   elif args.gpgpusim_config == "SM7_TITANV":
     scale=1.411764706
   else:
@@ -134,7 +135,7 @@ def statistics(configs_gpu, configs_pim, configs_all):
   pim_cycles = {}
   for c in range(len(configs_pim)):
     pname = f"{configs_pim[c][0]}_{args.n_channel}/PIM_trace_partition_{args.n_channel}_{args.n_gwrite}-{32 - args.n_channel}.pim"
-    cyc = os.popen(f"/root/PIMFlow_ramulator/ramulator /root/PIMFlow_ramulator/configs/HBM-config.cfg --mode=dram {pname} | grep Cycle").read()
+    cyc = os.popen(f"/root/PIMFlow_ramulator/ramulator /root/PIMFlow_ramulator/configs/GDDR6-config.cfg --mode=dram {pname} | grep Cycle").read()
     cyc = re.sub(r'[^0-9]', '', cyc)
     pim_cycles[configs_pim[c][0]] = int(cyc) * scale
     print(pim_cycles[configs_pim[c][0]])
@@ -142,7 +143,7 @@ def statistics(configs_gpu, configs_pim, configs_all):
   pim_cycles_noopt = {}
   for c in range(len(configs_pim)):
     pname = f"{configs_pim[c][0]}_{args.n_channel}/PIM_trace_partition_{args.n_channel}_{args.n_gwrite}-{32 - args.n_channel}.pim"
-    cyc = os.popen(f"RAMULATOR_DISABLE_GWRITE_LATENCY_HIDING=1 /root/PIMFlow_ramulator/ramulator /root/PIMFlow_ramulator/configs/HBM-config.cfg --mode=dram {pname} | grep Cycle").read()
+    cyc = os.popen(f"RAMULATOR_DISABLE_GWRITE_LATENCY_HIDING=1 /root/PIMFlow_ramulator/ramulator /root/PIMFlow_ramulator/configs/GDDR6-config.cfg --mode=dram {pname} | grep Cycle").read()
     cyc = re.sub(r'[^0-9]', '', cyc)
     pim_cycles_noopt[configs_pim[c][0]] = int(cyc) * scale
     print(pim_cycles_noopt[configs_pim[c][0]])
@@ -243,7 +244,8 @@ def statistics(configs_gpu, configs_pim, configs_all):
 
 def update_pim(configs_pim):
   if args.gpgpusim_config == "SM75_RTX2060":
-    scale = 1.605882353
+    # scale = 1.605882353 # HBM
+    scale = 1.56 # GDDR6
   elif args.gpgpusim_config == "SM7_TITANV":
     scale = 1.411764706
   else:
@@ -252,14 +254,14 @@ def update_pim(configs_pim):
   pim_cycles = {}
   for c in range(len(configs_pim)):
     pname = f"{configs_pim[c][0]}_{args.n_channel}/PIM_trace_partition_{args.n_channel}_{args.n_gwrite}-{32 - args.n_channel}.pim"
-    cyc = os.popen(f"/root/PIMFlow_ramulator/ramulator /root/PIMFlow_ramulator/configs/HBM-config.cfg --mode=dram {pname} | grep Cycle").read()
+    cyc = os.popen(f"/root/PIMFlow_ramulator/ramulator /root/PIMFlow_ramulator/configs/GDDR6-config.cfg --mode=dram {pname} | grep Cycle").read()
     cyc = re.sub(r'[^0-9]', '', cyc)
     pim_cycles[configs_pim[c][0]] = int(cyc) * scale
 
   pim_cycles_noopt = {}
   for c in range(len(configs_pim)):
     pname = f"{configs_pim[c][0]}_{args.n_channel}/PIM_trace_partition_{args.n_channel}_{args.n_gwrite}-{32 - args.n_channel}.pim"
-    cyc = os.popen(f"RAMULATOR_DISABLE_GWRITE_LATENCY_HIDING=1 /root/PIMFlow_ramulator/ramulator /root/PIMFlow_ramulator/configs/HBM-config.cfg --mode=dram {pname} | grep Cycle").read()
+    cyc = os.popen(f"RAMULATOR_DISABLE_GWRITE_LATENCY_HIDING=1 /root/PIMFlow_ramulator/ramulator /root/PIMFlow_ramulator/configs/GDDR6-config.cfg --mode=dram {pname} | grep Cycle").read()
     cyc = re.sub(r'[^0-9]', '', cyc)
     pim_cycles_noopt[configs_pim[c][0]] = int(cyc) * scale
 
