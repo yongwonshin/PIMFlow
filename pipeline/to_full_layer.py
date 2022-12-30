@@ -7,7 +7,13 @@ from pim.util import MODEL_LIST
 parser = argparse.ArgumentParser()
 parser.add_argument("--model", help="model", choices=MODEL_LIST, required=True)
 parser.add_argument("--n_channel", type=int, default=16)
+parser.add_argument("--n_gwrite", type=int, default=4)
+parser.add_argument("--ramulator_disable_gwrite_latency_hiding", action="store_true")
 args = parser.parse_args()
+
+postfix = ""
+if args.ramulator_disable_gwrite_latency_hiding:
+    postfix = "_noopt"
 
 def process(model):
   end_to_end = pd.read_csv(f'{model}_{args.n_channel}.onnx_conv.csv', delimiter=',',header=None)
@@ -16,10 +22,10 @@ def process(model):
   END_max = [list(row) for row in end_to_end.values]
 
   baseline = pd.read_csv(f'{model}_split100-baseline.csv', delimiter=',')
-  gpu = pd.read_csv(f'{model}_split100_{args.n_channel}.csv', delimiter=',')
+  gpu = pd.read_csv(f'{model}_split100_{args.n_channel}_{args.n_gwrite}{postfix}.csv', delimiter=',')
   head = ["kernel_name","N","I_c","H","W","O_c","kernel_size","pads","strides","group","dilations","bias","activation","GPU cycles","PIM cycles","TOTAL_cycle","RATIO","SPEED_UP"]
   head_split = ["kernel_name","N","I_c","H","W","O_c","kernel_size","pads","strides","group","dilations","bias","activation","node_name","GPU cycles","PIM cycles","TOTAL_cycle","RATIO","SPEED_UP"]
-  newton = pd.read_csv(f'../layerwise/newton_performance_{model}_{args.n_channel}.csv', delimiter=',')
+  newton = pd.read_csv(f'../layerwise/newton_performance_{model}_{args.n_channel}_{args.n_gwrite}{postfix}.csv', delimiter=',')
 
   # head.append("TOTAL_cycel")
   # head.append("RATIO")
@@ -48,7 +54,7 @@ def process(model):
   DIC_TOT_max={}
   DIC_RATIO_max={}
   DIC_SPEED_max={}
-  max_ = pd.read_csv(f'max_performance_{model}_{args.n_channel}.csv', delimiter=',')
+  max_ = pd.read_csv(f'max_performance_{model}_{args.n_channel}_{args.n_gwrite}{postfix}.csv', delimiter=',')
   MAX = [list(row) for row in max_.values]
   for i in range(len(MAX)):
     key = str(MAX[i][1]) + str(MAX[i][2]) + str(MAX[i][4]) + str(MAX[i][5]) + str(MAX[i][6][3]) + str(MAX[i][7]) + str(MAX[i][8])
@@ -90,24 +96,24 @@ def process(model):
     END_max[i].append(DIC_RATIO_max.get(key, 0))
     END_max[i].append(DIC_SPEED_max.get(key, 0))
 
-  with open(f'max_performance_end_to_end_{model}_{args.n_channel}.csv', 'w',newline='') as f:
+  with open(f'max_performance_end_to_end_{model}_{args.n_channel}_{args.n_gwrite}{postfix}.csv', 'w',newline='') as f:
     write = csv.writer(f)
     write.writerow(head_split)
     write.writerows(END_max)
 
-  with open(f'baseline_end_to_end_{model}_{args.n_channel}.csv', 'w',newline='') as f:
+  with open(f'baseline_end_to_end_{model}_{args.n_channel}_{args.n_gwrite}{postfix}.csv', 'w',newline='') as f:
     write = csv.writer(f)
     write.writerow(head)
     write.writerows(END_base)
 
-  with open(f'gpu_end_to_end_{model}_{args.n_channel}.csv', 'w',newline='') as f:
+  with open(f'gpu_end_to_end_{model}_{args.n_channel}_{args.n_gwrite}{postfix}.csv', 'w',newline='') as f:
     write = csv.writer(f)
     write.writerow(head)
     write.writerows(END_gpu)
 
 os.system(f"python3 /root/PIMFlow/layerwise/inspect_shape.py --model={args.model} --split_ratio=100 --full --n_channel={args.n_channel}")
-os.system(f"cp ../layerwise/max_performance_{args.model}_{args.n_channel}.csv ./")
+os.system(f"cp ../layerwise/max_performance_{args.model}_{args.n_channel}_{args.n_gwrite}{postfix}.csv ./")
 os.system(f"cp ../layerwise/{args.model}_split100-baseline.csv ./")
-os.system(f"cp ../layerwise/{args.model}_split100_{args.n_channel}.csv ./")
+os.system(f"cp ../layerwise/{args.model}_split100_{args.n_channel}_{args.n_gwrite}{postfix}.csv ./")
 # os.system(f"cp ../layerwise/{args.model}.onnx_conv.csv ./")
 process(args.model)

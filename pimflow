@@ -71,10 +71,10 @@ def profile(args):
     os.system(f"cd pipeline && ./profile.sh {args.network} {args.accel_sim_gpu} {args.accel_sim_kernel_launch_latency} {args.accel_sim_n_channel}")
 
 def solve(args):
-  os.system(f"cd solve && ./solve.sh {args.network}")
+  os.system(f"cd solve && ./solve.sh {args.network} {args.accel_sim_n_channel}")
 
 def stat_conv_only(network):
-  os.system(f"cd solve && ./stat.sh {network}")
+  os.system(f"cd solve && ./stat.sh {args.network} {args.accel_sim_n_channel}")
 
 def get_gpu_cycle(path):
   cycle = 0
@@ -387,7 +387,7 @@ if __name__ == '__main__':
 
   elif args.mode == "stat":
     if args.conv_only:
-      stat_conv_only(args.network)
+      stat_conv_only(args)
     else:
       gpu_cycle = stat(args.network, gpu_only=True)
       pimflow_cycle = stat(args.network)

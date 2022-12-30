@@ -12,13 +12,14 @@ parser = argparse.ArgumentParser()
 group = parser.add_mutually_exclusive_group(required=True)
 group.add_argument("--trace", action="store_true", help="create trace")
 group.add_argument("--simulate", action="store_true", help="simulate")
+group.add_argument("--pim_codegen", action="store_true", help="pim codegen")
 group.add_argument("--stat", action="store_true", help="record statistics")
 group.add_argument("--pim", action="store_true", help="pim_cycle")
 group.add_argument("--update_pim", action="store_true", help="update pim")
 parser.add_argument("--gpgpusim_config", help="gpgpusim config (e.g. SM75_RTX2060")
 parser.add_argument("--device_id", type=int, default=0)
 parser.add_argument("--pipeline", type=int, default=0)
-parser.add_argument("--kernel_launch_latency", type=int, default=10)
+parser.add_argument("--kernel_launch_latency", type=int, default=5010)
 parser.add_argument("--n_channel", type=int, default=16)
 parser.add_argument("--n_gwrite", type=int, default=4)
 parser.add_argument("--model", help="model", choices=MODEL_LIST, required=True)
@@ -132,18 +133,26 @@ def statistics(configs_gpu, configs_pim, configs_all):
 
   pim_cycles = {}
   for c in range(len(configs_pim)):
-    pname = f"{configs_pim[c][0]}_{args.n_channel}/PIM_trace_partition_{args.n_channel}-{32 - args.n_channel}.pim"
+    pname = f"{configs_pim[c][0]}_{args.n_channel}/PIM_trace_partition_{args.n_channel}_{args.n_gwrite}-{32 - args.n_channel}.pim"
     cyc = os.popen(f"/root/PIMFlow_ramulator/ramulator /root/PIMFlow_ramulator/configs/HBM-config.cfg --mode=dram {pname} | grep Cycle").read()
     cyc = re.sub(r'[^0-9]', '', cyc)
     pim_cycles[configs_pim[c][0]] = int(cyc) * scale
     print(pim_cycles[configs_pim[c][0]])
+
+  pim_cycles_noopt = {}
+  for c in range(len(configs_pim)):
+    pname = f"{configs_pim[c][0]}_{args.n_channel}/PIM_trace_partition_{args.n_channel}_{args.n_gwrite}-{32 - args.n_channel}.pim"
+    cyc = os.popen(f"RAMULATOR_DISABLE_GWRITE_LATENCY_HIDING=1 /root/PIMFlow_ramulator/ramulator /root/PIMFlow_ramulator/configs/HBM-config.cfg --mode=dram {pname} | grep Cycle").read()
+    cyc = re.sub(r'[^0-9]', '', cyc)
+    pim_cycles_noopt[configs_pim[c][0]] = int(cyc) * scale
+    print(pim_cycles_noopt[configs_pim[c][0]])
 
   gpu_cycles = {}
   for c in range(len(configs_gpu)):
     fname = f"traces-{configs_gpu[c][0]}.txt"
     with open(fname) as f:
       lines = f.readlines()
-      
+
       # if start != 3 or end != 3:
       #   print(f"SKIP: {fname}")
       #   continue
@@ -158,7 +167,7 @@ def statistics(configs_gpu, configs_pim, configs_all):
       # assert len(runs) == 3
       gpu_cycles[configs_gpu[c][0]]=int(tot_runs[len(tot_runs)-1])
       # print(runs)
-  with open(f'{args.model}_pipeline{args.pipeline}_{args.n_channel}.csv','w', newline='') as f:
+  with open(f'{args.model}_pipeline{args.pipeline}_{args.n_channel}_{args.n_gwrite}.csv','w', newline='') as f:
     wr = csv.writer(f)
     wr.writerow(['kernel_name','I_c','O_c','H','W','kernel_size','pads','strides','group','dilations','bias','activation','GPU cycles','PIM cycles'])
 
@@ -195,6 +204,43 @@ def statistics(configs_gpu, configs_pim, configs_all):
         wr.writerow([configs_all[c][0],configs_all[c][2],configs_all[c][5],configs_all[c][3],configs_all[c][4],configs_all[c][6],configs_all[c][7],configs_all[c][8],configs_all[c][9],configs_all[c][10],configs_all[c][11],configs_all[c][12],gpu_cycles.get(configs_all[c][0],0),0])
       c = c + 1
 
+  with open(f'{args.model}_pipeline{args.pipeline}_{args.n_channel}_{args.n_gwrite}_noopt.csv','w', newline='') as f:
+    wr = csv.writer(f)
+    wr.writerow(['kernel_name','I_c','O_c','H','W','kernel_size','pads','strides','group','dilations','bias','activation','GPU cycles','PIM cycles'])
+
+    c = 0
+    while True:
+      if c >= len(configs_all):
+        break
+
+      if "pim" in configs_all[c][0]:
+        if c + 1 >= len(configs_all):
+          wr.writerow([configs_all[c][0],configs_all[c][2],configs_all[c][5],configs_all[c][3],configs_all[c][4],configs_all[c][6],configs_all[c][7],configs_all[c][8],configs_all[c][9],configs_all[c][10],configs_all[c][11],configs_all[c][12],0,pim_cycles_noopt.get(configs_all[c][0],0)])
+          c = c + 1
+          continue
+        if "pim" in configs_all[c+1][0]:
+          wr.writerow([configs_all[c][0],configs_all[c][2],configs_all[c][5],configs_all[c][3],configs_all[c][4],configs_all[c][6],configs_all[c][7],configs_all[c][8],configs_all[c][9],configs_all[c][10],configs_all[c][11],configs_all[c][12],0,pim_cycles_noopt.get(configs_all[c][0],0)])
+        elif "added" in configs_all[c+1][0]:
+          wr.writerow([configs_all[c][0],configs_all[c][2],configs_all[c][5],configs_all[c][3],configs_all[c][4],configs_all[c][6],configs_all[c][7],configs_all[c][8],configs_all[c][9],configs_all[c][10],configs_all[c][11],configs_all[c][12],gpu_cycles.get(configs_all[c+1][0],0),pim_cycles_noopt.get(configs_all[c][0],0)])
+          c = c + 1
+        else:
+          wr.writerow([configs_all[c][0],configs_all[c][2],configs_all[c][5],configs_all[c][3],configs_all[c][4],configs_all[c][6],configs_all[c][7],configs_all[c][8],configs_all[c][9],configs_all[c][10],configs_all[c][11],configs_all[c][12],0,pim_cycles_noopt.get(configs_all[c][0],0)])
+      elif "added" in configs_all[c][0]:
+        if c + 1 >= len(configs_all):
+          wr.writerow([configs_all[c][0],configs_all[c][2],configs_all[c][5],configs_all[c][3],configs_all[c][4],configs_all[c][6],configs_all[c][7],configs_all[c][8],configs_all[c][9],configs_all[c][10],configs_all[c][11],configs_all[c][12],gpu_cycles.get(configs_all[c][0],0),0])
+          c = c + 1
+          continue
+        if "pim" in configs_all[c+1][0]:
+          wr.writerow([configs_all[c][0],configs_all[c][2],configs_all[c][5],configs_all[c][3],configs_all[c][4],configs_all[c][6],configs_all[c][7],configs_all[c][8],configs_all[c][9],configs_all[c][10],configs_all[c][11],configs_all[c][12],gpu_cycles.get(configs_all[c][0],0),pim_cycles_noopt.get(configs_all[c+1][0],0)])
+          c = c + 1
+        elif "added" in configs_all[c+1][0]:
+          wr.writerow([configs_all[c][0],configs_all[c][2],configs_all[c][5],configs_all[c][3],configs_all[c][4],configs_all[c][6],configs_all[c][7],configs_all[c][8],configs_all[c][9],configs_all[c][10],configs_all[c][11],configs_all[c][12],gpu_cycles.get(configs_all[c][0],0),0])
+        else:
+          wr.writerow([configs_all[c][0],configs_all[c][2],configs_all[c][5],configs_all[c][3],configs_all[c][4],configs_all[c][6],configs_all[c][7],configs_all[c][8],configs_all[c][9],configs_all[c][10],configs_all[c][11],configs_all[c][12],gpu_cycles.get(configs_all[c][0],0),0])
+      else:
+        wr.writerow([configs_all[c][0],configs_all[c][2],configs_all[c][5],configs_all[c][3],configs_all[c][4],configs_all[c][6],configs_all[c][7],configs_all[c][8],configs_all[c][9],configs_all[c][10],configs_all[c][11],configs_all[c][12],gpu_cycles.get(configs_all[c][0],0),0])
+      c = c + 1
+
 def update_pim(configs_pim):
   if args.gpgpusim_config == "SM75_RTX2060":
     scale = 1.605882353
@@ -205,12 +251,19 @@ def update_pim(configs_pim):
 
   pim_cycles = {}
   for c in range(len(configs_pim)):
-    pname = f"{configs_pim[c][0]}_{args.n_channel}/PIM_trace_partition_{args.n_channel}-{32 - args.n_channel}.pim"
+    pname = f"{configs_pim[c][0]}_{args.n_channel}/PIM_trace_partition_{args.n_channel}_{args.n_gwrite}-{32 - args.n_channel}.pim"
     cyc = os.popen(f"/root/PIMFlow_ramulator/ramulator /root/PIMFlow_ramulator/configs/HBM-config.cfg --mode=dram {pname} | grep Cycle").read()
     cyc = re.sub(r'[^0-9]', '', cyc)
     pim_cycles[configs_pim[c][0]] = int(cyc) * scale
 
-  f = pd.read_csv(f'{args.model}_pipeline{args.pipeline}_{args.n_channel}.csv', delimiter=',')
+  pim_cycles_noopt = {}
+  for c in range(len(configs_pim)):
+    pname = f"{configs_pim[c][0]}_{args.n_channel}/PIM_trace_partition_{args.n_channel}_{args.n_gwrite}-{32 - args.n_channel}.pim"
+    cyc = os.popen(f"RAMULATOR_DISABLE_GWRITE_LATENCY_HIDING=1 /root/PIMFlow_ramulator/ramulator /root/PIMFlow_ramulator/configs/HBM-config.cfg --mode=dram {pname} | grep Cycle").read()
+    cyc = re.sub(r'[^0-9]', '', cyc)
+    pim_cycles_noopt[configs_pim[c][0]] = int(cyc) * scale
+
+  f = pd.read_csv(f'{args.model}_pipeline{args.pipeline}_{args.n_channel}_{args.n_gwrite}.csv', delimiter=',')
   header = list(f.columns)
   rows = [list(row) for row in f.values]
 
@@ -218,7 +271,7 @@ def update_pim(configs_pim):
   # header2 = list(g.columns)
   rows2 = [list(row) for row in g.values]
 
-  with open(f'{args.model}_pipeline{args.pipeline}_{args.n_channel}_.csv', 'w', newline='') as h:
+  with open(f'{args.model}_pipeline{args.pipeline}_{args.n_channel}_{args.n_gwrite}.csv', 'w', newline='') as h:
     writer = csv.writer(h)
     writer.writerow(header)
     for i, row in enumerate(rows):
@@ -246,24 +299,50 @@ def update_pim(configs_pim):
         assert False
     writer.writerows(rows)
 
+  with open(f'{args.model}_pipeline{args.pipeline}_{args.n_channel}_{args.n_gwrite}_noopt.csv', 'w', newline='') as h:
+    writer = csv.writer(h)
+    writer.writerow(header)
+    for i, row in enumerate(rows):
+      rows[i][13] = 0
+    for i, row in enumerate(rows):
+      if args.pipeline == 1:
+        if "pim" in row[0]:
+          rows[i][13] = pim_cycles_noopt[row[0]]
+      elif args.pipeline == 2:
+        if "pim" in row[0]:
+          for j, row2 in enumerate(rows2):
+            if row2[0] == row[0]:
+              rows[i-1][13] = pim_cycles_noopt[rows2[j-1][0]]
+              rows[i][13] = pim_cycles_noopt[rows2[j][0]]
+              break
+      elif args.pipeline == 3:
+        if "added" in rows[i][0] and "pim" not in rows[i][0] and "pim" in rows[i+1][0]:
+          for j, row2 in enumerate(rows2):
+            if row2[0] == row[0]:
+              rows[i-2][13] = pim_cycles_noopt[rows2[j-3][0]]
+              rows[i-1][13] = pim_cycles_noopt[rows2[j-2][0]]
+              rows[i][13] = pim_cycles_noopt[rows2[j+1][0]]
+              rows[i+1][13] = pim_cycles_noopt[rows2[j+2][0]]
+      else:
+        assert False
+    writer.writerows(rows)
+
 if args.trace:
   trace(CONFIG_GPU)
 
 if args.simulate:
+  simulate(CONFIG_GPU)
+
+if args.pim_codegen:
   for config in CONFIG_PIM:
     os.system(f'sh pim_codegen.sh {config[0]}_{args.n_channel} {config[5]} {config[2]} {config[6][1]} {config[6][3]} {config[8]} {config[7][1]} {config[7][3]} {config[10]} {config[9]} {config[11]} {config[3]} {config[4]} {args.n_channel} {args.n_gwrite}')
-  simulate(CONFIG_GPU)
 
 if args.stat:
   statistics(CONFIG_GPU, CONFIG_PIM, CONFIG_ALL)
 
 if args.update_pim:
-  # os.system(f"cp {args.model}_pipeline{args.pipeline}.csv {args.model}_pipeline{args.pipeline}_16.csv")
-  # if not os.path.exists(f'{args.model}_pipeline{args.pipeline}_{args.n_channel}.csv.bak'):
-    # os.system(f"cp {args.model}_pipeline{args.pipeline}_{args.n_channel}.csv {args.model}_pipeline{args.pipeline}_{args.n_channel}.csv.bak")
   for config in CONFIG_PIM:
     os.system(f'sh pim_codegen.sh {config[0]}_{args.n_channel} {config[5]} {config[2]} {config[6][1]} {config[6][3]} {config[8]} {config[7][1]} {config[7][3]} {config[10]} {config[9]} {config[11]} {config[3]} {config[4]} {args.n_channel} {args.n_gwrite}')
   update_pim(CONFIG_PIM)
-  os.system(f"mv {args.model}_pipeline{args.pipeline}_{args.n_channel}_.csv {args.model}_pipeline{args.pipeline}_{args.n_channel}.csv")
 
 print("Finished!")

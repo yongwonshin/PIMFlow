@@ -15,21 +15,27 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--model", help="model", choices=MODEL_LIST, required=True)
 parser.add_argument("--pipeline", choices=["none", "1", "2", "3", "all"], required=True)
 parser.add_argument("--n_channel", type=int, default=16)
+parser.add_argument("--n_gwrite", type=int, default=4)
+parser.add_argument("--ramulator_disable_gwrite_latency_hiding", action="store_true")
 args = parser.parse_args()
 
-baseline = pd.read_csv(f'../pipeline/baseline_end_to_end_{args.model}_{args.n_channel}.csv', delimiter=',')
-gpu = pd.read_csv(f'../pipeline/gpu_end_to_end_{args.model}_{args.n_channel}.csv', delimiter=',')
-split = pd.read_csv(f'../pipeline/max_performance_end_to_end_{args.model}_{args.n_channel}.csv', delimiter=',')
+postfix = ""
+if args.ramulator_disable_gwrite_latency_hiding:
+  postfix = "_noopt"
+
+baseline = pd.read_csv(f'../pipeline/baseline_end_to_end_{args.model}_{args.n_channel}_{args.n_gwrite}{postfix}.csv', delimiter=',')
+gpu = pd.read_csv(f'../pipeline/gpu_end_to_end_{args.model}_{args.n_channel}_{args.n_gwrite}{postfix}.csv', delimiter=',')
+split = pd.read_csv(f'../pipeline/max_performance_end_to_end_{args.model}_{args.n_channel}_{args.n_gwrite}{postfix}.csv', delimiter=',')
 
 pipeline1 = None
 pipeline2 = None
 pipeline3 = None
-if os.path.exists(f'../pipeline/{args.model}_pipeline1_{args.n_channel}.csv'):
-  pipeline1 = pd.read_csv(f'../pipeline/{args.model}_pipeline1_{args.n_channel}.csv', delimiter=',')
+if os.path.exists(f'../pipeline/{args.model}_pipeline1_{args.n_channel}_{args.n_gwrite}{postfix}.csv'):
+  pipeline1 = pd.read_csv(f'../pipeline/{args.model}_pipeline1_{args.n_channel}_{args.n_gwrite}{postfix}.csv', delimiter=',')
 if os.path.exists(f'../pipeline/{args.model}_pipeline2_{args.n_channel}.csv'):
-  pipeline2 = pd.read_csv(f'../pipeline/{args.model}_pipeline2_{args.n_channel}.csv', delimiter=',')
+  pipeline2 = pd.read_csv(f'../pipeline/{args.model}_pipeline2_{args.n_channel}_{args.n_gwrite}{postfix}.csv', delimiter=',')
 if os.path.exists(f'../pipeline/{args.model}_pipeline3_{args.n_channel}.csv'):
-  pipeline3 = pd.read_csv(f'../pipeline/{args.model}_pipeline3_{args.n_channel}.csv', delimiter=',')
+  pipeline3 = pd.read_csv(f'../pipeline/{args.model}_pipeline3_{args.n_channel}_{args.n_gwrite}{postfix}.csv', delimiter=',')
 
 
 pipeline1_onnx = None
@@ -250,11 +256,9 @@ for p in worst_pipelines:
   b = [dp_ws[i+j][1] for j in range(l)]
 
 
+print(f"=== N_CHANNEL: {args.n_channel}, N_GWRITE: {args.n_gwrite}, ramulator_disable_gwrite_latency_hiding: {args.ramulator_disable_gwrite_latency_hiding} ===")
 print(f"newton++ (vs baseline): {round(baseline_cycle / newton_cycle, 3)} ({newton_cycle - baseline_cycle})")
 print(f"pipeline (vs baseline): {round(baseline_cycle / dp_b[1][N], 3)} ({dp_b[1][N] - baseline_cycle})")
 print(f"split (vs baseline): {round(baseline_cycle / split_cycle, 3)} ({split_cycle - baseline_cycle})")
 print(f"all (vs baseline): {round(baseline_cycle / dp_s[1][N], 3)} ({dp_s[1][N] - baseline_cycle})")
-
-
-
-
+print("====================\n")

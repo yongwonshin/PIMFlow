@@ -15,21 +15,27 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--model", help="model", choices=MODEL_LIST, required=True)
 parser.add_argument("--pipeline", choices=["none", "1", "2", "3", "all"], required=True)
 parser.add_argument("--n_channel", type=int, default=16)
+parser.add_argument("--n_gwrite", type=int, default=4)
+parser.add_argument("--ramulator_disable_gwrite_latency_hiding", action="store_true")
 args = parser.parse_args()
 
-baseline = pd.read_csv(f'../pipeline/baseline_end_to_end_{args.model}_{args.n_channel}.csv', delimiter=',')
-gpu = pd.read_csv(f'../pipeline/gpu_end_to_end_{args.model}_{args.n_channel}.csv', delimiter=',')
-split = pd.read_csv(f'../pipeline/max_performance_end_to_end_{args.model}_{args.n_channel}.csv', delimiter=',')
+postfix = ""
+if args.ramulator_disable_gwrite_latency_hiding:
+  postfix = "_noopt"
+
+baseline = pd.read_csv(f'../pipeline/baseline_end_to_end_{args.model}_{args.n_channel}_{args.n_gwrite}{postfix}.csv', delimiter=',')
+gpu = pd.read_csv(f'../pipeline/gpu_end_to_end_{args.model}_{args.n_channel}_{args.n_gwrite}{postfix}.csv', delimiter=',')
+split = pd.read_csv(f'../pipeline/max_performance_end_to_end_{args.model}_{args.n_channel}_{args.n_gwrite}{postfix}.csv', delimiter=',')
 
 pipeline1 = None
 pipeline2 = None
 pipeline3 = None
-if os.path.exists(f'../pipeline/{args.model}_pipeline1_{args.n_channel}.csv'):
-  pipeline1 = pd.read_csv(f'../pipeline/{args.model}_pipeline1_{args.n_channel}.csv', delimiter=',')
-if os.path.exists(f'../pipeline/{args.model}_pipeline2_{args.n_channel}.csv'):
-  pipeline2 = pd.read_csv(f'../pipeline/{args.model}_pipeline2_{args.n_channel}.csv', delimiter=',')
-if os.path.exists(f'../pipeline/{args.model}_pipeline3_{args.n_channel}.csv'):
-  pipeline3 = pd.read_csv(f'../pipeline/{args.model}_pipeline3_{args.n_channel}.csv', delimiter=',')
+if os.path.exists(f'../pipeline/{args.model}_pipeline1_{args.n_channel}_{args.n_gwrite}{postfix}.csv'):
+  pipeline1 = pd.read_csv(f'../pipeline/{args.model}_pipeline1_{args.n_channel}_{args.n_gwrite}{postfix}.csv', delimiter=',')
+if os.path.exists(f'../pipeline/{args.model}_pipeline2_{args.n_channel}_{args.n_gwrite}{postfix}.csv'):
+  pipeline2 = pd.read_csv(f'../pipeline/{args.model}_pipeline2_{args.n_channel}_{args.n_gwrite}{postfix}.csv', delimiter=',')
+if os.path.exists(f'../pipeline/{args.model}_pipeline3_{args.n_channel}_{args.n_gwrite}{postfix}.csv'):
+  pipeline3 = pd.read_csv(f'../pipeline/{args.model}_pipeline3_{args.n_channel}_{args.n_gwrite}{postfix}.csv', delimiter=',')
 
 
 pipeline1_onnx = None
@@ -251,7 +257,7 @@ for p in worst_pipelines:
 
 # final
 
-os.system(f'mkdir /root/PIMFlow/{args.model}')
+os.system(f'mkdir -p /root/PIMFlow/{args.model}')
 OPTIMAL=[]
 
 
@@ -327,9 +333,9 @@ for i, k in enumerate(optimal_name):
     OPTIMAL.append(k)
 
 
-with open(f'solve_{args.model}.csv', 'w',newline='') as f:
+with open(f'solve_{args.model}_{args.n_gwrite}{postfix}.csv', 'w',newline='') as f:
   write = csv.writer(f)
   write.writerows(OPTIMAL)
-os.system(f'mv solve_{args.model}.csv /root/PIMFlow/{args.model}/')
+os.system(f'mv solve_{args.model}_{args.n_gwrite}{postfix}.csv /root/PIMFlow/{args.model}/')
 for i in OPTIMAL:
   print(i)
