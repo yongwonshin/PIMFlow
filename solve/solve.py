@@ -17,6 +17,7 @@ parser.add_argument("--pipeline", choices=["none", "1", "2", "3", "all"], requir
 parser.add_argument("--n_channel", type=int, default=16)
 parser.add_argument("--n_gwrite", type=int, default=4)
 parser.add_argument("--ramulator_disable_gwrite_latency_hiding", action="store_true")
+parser.add_argument("--policy", choices=["Newton+", "Newton++", "Pipeline", "MDDP", "PIMFlow"], required=True)
 args = parser.parse_args()
 
 postfix = ""
@@ -71,6 +72,11 @@ for i, row in enumerate(gpu.values):
   row = list(row)
   cycle = min(float(row[-5]), float(row[-4]))
   dp_b[i+1][1] = cycle
+  if args.policy == "Newton++" or args.policy == "Pipeline":
+    optimal_name.append([row[0],"Newton++",row[-2],row[-6]])
+    print(optimal_name)
+  elif args.policy == "Newton+":
+    optimal_name.append([row[0],"Newton+",row[-2],row[-6]])
   newton_cycle += cycle
 
 split_cycle = 0
@@ -81,7 +87,8 @@ for i, row in enumerate(split.values):
     cycle = dp_b[i+1][1]
   dp_s[i+1][1] = cycle
   dp_ws[i+1][1] = cycle
-  optimal_name.append([row[0],"split",row[-2],row[-6]])
+  if args.policy == "MDDP" or args.policy == "PIMFlow":
+      optimal_name.append([row[0],"split",row[-2],row[-6]])
   split_cycle += cycle
 
 
@@ -90,92 +97,93 @@ worst_pipelines = set()
 valids = set()
 
 # table for storing minimum runtime from jth node for 'i' number of nodes
-idx = 0
-idx_v = 0
-while True:
-  if args.pipeline not in ["1", "all"] or pipeline1 is None:
-    break
-  cycle = 0
-  rows = list(pipeline1.values)
-  row = list(rows[idx])
-  if "pim" in row[0]:
-    cycle += float(rows[idx][-1])
-    cycle += max(float(rows[idx+1][-1]), float(rows[idx+1][-2]))
-    cycle += float(rows[idx+2][-2])
-    dp_b[idx_v+1][2] = cycle
-    dp_s[idx_v+1][2] = cycle
-    dp_ws[idx_v+1][2] = cycle
-    pipeline_cycles[idx_v+1][2] = ([float(rows[idx][-1]), max(float(rows[idx+1][-1]), float(rows[idx+1][-2])), float(rows[idx+2][-2])], 1)
-    trace_name[idx_v+1][2] = str(rows[idx+2][0])
-    pipeline_type[idx_v+1][2] = 1
-    valids.add((idx_v+1, 2))
-    idx += 3
-    idx_v += 2
-  else:
-    idx += 1
-    idx_v += 1
+if args.policy == "Pipeline" or args.policy =="PIMFlow":
+  idx = 0
+  idx_v = 0
+  while True:
+    if args.pipeline not in ["1", "all"] or pipeline1 is None:
+      break
+    cycle = 0
+    rows = list(pipeline1.values)
+    row = list(rows[idx])
+    if "pim" in row[0]:
+      cycle += float(rows[idx][-1])
+      cycle += max(float(rows[idx+1][-1]), float(rows[idx+1][-2]))
+      cycle += float(rows[idx+2][-2])
+      dp_b[idx_v+1][2] = cycle
+      dp_s[idx_v+1][2] = cycle
+      dp_ws[idx_v+1][2] = cycle
+      pipeline_cycles[idx_v+1][2] = ([float(rows[idx][-1]), max(float(rows[idx+1][-1]), float(rows[idx+1][-2])), float(rows[idx+2][-2])], 1)
+      trace_name[idx_v+1][2] = str(rows[idx+2][0])
+      pipeline_type[idx_v+1][2] = 1
+      valids.add((idx_v+1, 2))
+      idx += 3
+      idx_v += 2
+    else:
+      idx += 1
+      idx_v += 1
 
-  if idx_v >= N:
-    break
+    if idx_v >= N:
+      break
 
-# table for storing minimum runtime from jth node for 'i' number of nodes
-idx = 0
-idx_v = 0
-while True:
-  if args.pipeline not in ["2", "all"] or pipeline2 is None:
-    break
-  cycle = 0
-  rows = list(pipeline2.values)
-  row = list(rows[idx])
-  if "added" in row[0]:
-    cycle += float(rows[idx][-2])
-    cycle += max(float(rows[idx+1][-1]), float(rows[idx+1][-2]))
-    cycle += float(rows[idx+2][-1])
-    dp_b[idx_v+1][2] = cycle
-    dp_s[idx_v+1][2] = cycle
-    dp_ws[idx_v+1][2] = cycle
-    pipeline_cycles[idx_v+1][2] = ([float(rows[idx][-2]), max(float(rows[idx+1][-1]), float(rows[idx+1][-2])), float(rows[idx+2][-1])], 2)
-    trace_name[idx_v+1][2] = str(rows[idx][0])
-    pipeline_type[idx_v+1][2] = 2
-    valids.add((idx_v+1, 2))
-    idx += 3
-    idx_v += 2
-  else:
-    idx += 1
-    idx_v += 1
+  # table for storing minimum runtime from jth node for 'i' number of nodes
+  idx = 0
+  idx_v = 0
+  while True:
+    if args.pipeline not in ["2", "all"] or pipeline2 is None:
+      break
+    cycle = 0
+    rows = list(pipeline2.values)
+    row = list(rows[idx])
+    if "added" in row[0]:
+      cycle += float(rows[idx][-2])
+      cycle += max(float(rows[idx+1][-1]), float(rows[idx+1][-2]))
+      cycle += float(rows[idx+2][-1])
+      dp_b[idx_v+1][2] = cycle
+      dp_s[idx_v+1][2] = cycle
+      dp_ws[idx_v+1][2] = cycle
+      pipeline_cycles[idx_v+1][2] = ([float(rows[idx][-2]), max(float(rows[idx+1][-1]), float(rows[idx+1][-2])), float(rows[idx+2][-1])], 2)
+      trace_name[idx_v+1][2] = str(rows[idx][0])
+      pipeline_type[idx_v+1][2] = 2
+      valids.add((idx_v+1, 2))
+      idx += 3
+      idx_v += 2
+    else:
+      idx += 1
+      idx_v += 1
 
-  if idx_v >= N:
-    break
+    if idx_v >= N:
+      break
 
-# table for storing minimum runtime from jth node for 'i' number of nodes
-idx = 0
-idx_v = 0
-while True:
-  if args.pipeline not in ["3", "all"] or pipeline3 is None:
-    break
-  cycle = 0
-  rows = list(pipeline3.values)
-  row = list(rows[idx])
-  if "pim" in row[0]:
-    cycle += float(rows[idx][-1])
-    cycle += max(float(rows[idx+1][-1]), float(rows[idx+1][-2]))
-    cycle += max(float(rows[idx+2][-1]), float(rows[idx+2][-2]))
-    cycle += float(rows[idx+3][-1])
-    dp_b[idx_v+1][3] = cycle
-    dp_s[idx_v+1][3] = cycle
-    dp_ws[idx_v+1][3] = cycle
-    pipeline_cycles[idx_v+1][3] = ([float(rows[idx][-1]), max(float(rows[idx+1][-1]), float(rows[idx+1][-2])), max(float(rows[idx+2][-1]), float(rows[idx+2][-2])), float(rows[idx+3][-1])], 3)
-    trace_name[idx_v+1][3] = str(rows[idx+2][0])
-    pipeline_type[idx_v+1][3] = 3
-    valids.add((idx_v+1, 3))
-    idx += 4
-    idx_v += 3
-  else:
-    idx += 1
-    idx_v += 1
+  # table for storing minimum runtime from jth node for 'i' number of nodes
+  idx = 0
+  idx_v = 0
+  while True:
+    if args.pipeline not in ["3", "all"] or pipeline3 is None:
+      break
+    cycle = 0
+    rows = list(pipeline3.values)
+    row = list(rows[idx])
+    if "pim" in row[0]:
+      cycle += float(rows[idx][-1])
+      cycle += max(float(rows[idx+1][-1]), float(rows[idx+1][-2]))
+      cycle += max(float(rows[idx+2][-1]), float(rows[idx+2][-2]))
+      cycle += float(rows[idx+3][-1])
+      dp_b[idx_v+1][3] = cycle
+      dp_s[idx_v+1][3] = cycle
+      dp_ws[idx_v+1][3] = cycle
+      pipeline_cycles[idx_v+1][3] = ([float(rows[idx][-1]), max(float(rows[idx+1][-1]), float(rows[idx+1][-2])), max(float(rows[idx+2][-1]), float(rows[idx+2][-2])), float(rows[idx+3][-1])], 3)
+      trace_name[idx_v+1][3] = str(rows[idx+2][0])
+      pipeline_type[idx_v+1][3] = 3
+      valids.add((idx_v+1, 3))
+      idx += 4
+      idx_v += 3
+    else:
+      idx += 1
+      idx_v += 1
 
-  if idx_v >= N:
-    break
+    if idx_v >= N:
+      break
 
 
 # solve
@@ -257,7 +265,7 @@ for p in worst_pipelines:
 
 # final
 
-os.system(f'mkdir -p /root/PIMFlow/{args.model}')
+os.system(f'mkdir -p /root/PIMFlow/{args.model}/{args.policy}')
 OPTIMAL=[]
 
 
@@ -293,19 +301,25 @@ if pipeline3_onnx is not None:
 else:
   pipeline3_onnx = []
 for i, k in enumerate(optimal_name):
-  if k[1] == "split":
+  if k[1] == "Newton+" or k[1] == "Newton++":
+    print(k)
     if k[2] != 0:
-      os.system(f'cp -r /root/PIMFlow/layerwise/result_simulate/{args.model}/{k[2]}_16/traces-{k[3]} /root/PIMFlow/{args.model}/trace-{k[0]}')
+      os.system(f'cp -r /root/PIMFlow/layerwise/result_simulate/{args.model}/{k[2]}_16/traces-{k[3]} /root/PIMFlow/{args.model}/{args.policy}/trace-{k[0]}')
     optimal_name[i][3] = f'trace-{k[0]}'
     OPTIMAL.append(k)
-
+  if k[1] == "split":
+    print(k)
+    if k[2] != 0:
+      os.system(f'cp -r /root/PIMFlow/layerwise/result_simulate/{args.model}/{k[2]}_16/traces-{k[3]} /root/PIMFlow/{args.model}/{args.policy}/trace-{k[0]}')
+    optimal_name[i][3] = f'trace-{k[0]}'
+    OPTIMAL.append(k)
   elif k[1] == "pipeline" and k[3] != "pim":
     if k[2] == 1:
       for j, row in enumerate(pipeline1_onnx):
         if row[0]== k[3]:
           optimal_name[i].append(pipeline1_onnx[j-1][0])
-          os.system(f'cp -r /root/PIMFlow/pipeline/result_simulate/{args.model}/{k[2]}_16/traces-{k[3]} /root/PIMFlow/{args.model}/trace-{k[0]}_2')
-          os.system(f'cp -r /root/PIMFlow/pipeline/result_simulate/{args.model}/{k[2]}_16/traces-{k[4]} /root/PIMFlow/{args.model}/trace-{k[0]}_1')
+          os.system(f'cp -r /root/PIMFlow/pipeline/result_simulate/{args.model}/{k[2]}_16/traces-{k[3]} /root/PIMFlow/{args.model}/{args.policy}/trace-{k[0]}_2')
+          os.system(f'cp -r /root/PIMFlow/pipeline/result_simulate/{args.model}/{k[2]}_16/traces-{k[4]} /root/PIMFlow/{args.model}/{args.policy}/trace-{k[0]}_1')
           optimal_name[i][3] = f'trace-{k[0]}_1'
           optimal_name[i][4] = f'trace-{k[0]}_2'
           optimal_name[i][3] = f'trace-{k[0]}_1'
@@ -315,8 +329,8 @@ for i, k in enumerate(optimal_name):
       for j, row in enumerate(pipeline2_onnx):
         if row[0]== k[3]:
           optimal_name[i].append(pipeline2_onnx[j+1][0])
-          os.system(f'cp -r /root/PIMFlow/pipeline/result_simulate/{args.model}/{k[2]}_16/traces-{k[3]} /root/PIMFlow/{args.model}/trace-{k[0]}_1')
-          os.system(f'cp -r /root/PIMFlow/pipeline/result_simulate/{args.model}/{k[2]}_16/traces-{k[4]} /root/PIMFlow/{args.model}/trace-{k[0]}_2')
+          os.system(f'cp -r /root/PIMFlow/pipeline/result_simulate/{args.model}/{k[2]}_16/traces-{k[3]} /root/PIMFlow/{args.model}/{args.policy}/trace-{k[0]}_1')
+          os.system(f'cp -r /root/PIMFlow/pipeline/result_simulate/{args.model}/{k[2]}_16/traces-{k[4]} /root/PIMFlow/{args.model}/{args.policy}/trace-{k[0]}_2')
           optimal_name[i][3] = f'trace-{k[0]}_1'
           optimal_name[i][4] = f'trace-{k[0]}_2'
           optimal_name[i].insert(1,optimal_name[i+1][0])
@@ -324,8 +338,8 @@ for i, k in enumerate(optimal_name):
       for j, row in enumerate(pipeline3_onnx):
         if row[0]== k[3]:
           optimal_name[i].append(pipeline3_onnx[j-1][0])
-          os.system(f'cp -r /root/PIMFlow/pipeline/result_simulate/{args.model}/{k[2]}_16/traces-{k[3]} /root/PIMFlow/{args.model}/trace-{k[0]}_2')
-          os.system(f'cp -r /root/PIMFlow/pipeline/result_simulate/{args.model}/{k[2]}_16/traces-{k[4]} /root/PIMFlow/{args.model}/trace-{k[0]}_1')
+          os.system(f'cp -r /root/PIMFlow/pipeline/result_simulate/{args.model}/{k[2]}_16/traces-{k[3]} /root/PIMFlow/{args.model}/{args.policy}/trace-{k[0]}_2')
+          os.system(f'cp -r /root/PIMFlow/pipeline/result_simulate/{args.model}/{k[2]}_16/traces-{k[4]} /root/PIMFlow/{args.model}/{args.policy}/trace-{k[0]}_1')
           optimal_name[i][3] = f'trace-{k[0]}_1'
           optimal_name[i][4] = f'trace-{k[0]}_2'
           optimal_name[i].insert(0,optimal_name[i-1][0])
@@ -336,6 +350,6 @@ for i, k in enumerate(optimal_name):
 with open(f'solve_{args.model}_{args.n_gwrite}{postfix}.csv', 'w',newline='') as f:
   write = csv.writer(f)
   write.writerows(OPTIMAL)
-os.system(f'mv solve_{args.model}_{args.n_gwrite}{postfix}.csv /root/PIMFlow/{args.model}/')
+os.system(f'mv solve_{args.model}_{args.n_gwrite}{postfix}.csv /root/PIMFlow/{args.model}/{args.policy}/')
 for i in OPTIMAL:
   print(i)

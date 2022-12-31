@@ -42,8 +42,10 @@ def process(model):
   DIC_GPU_base={}
   DIC_GPU_only={}
   DIC_PIM_base={}
+  DIC_node_name={}
   for i in range(len(BASE)):
     key = str(BASE[i][1]) + str(BASE[i][2]) + str(BASE[i][4]) + str(BASE[i][5]) + str(BASE[i][6][3]) + str(BASE[i][7]) + str(BASE[i][8])
+    DIC_node_name[key] = BASE[i][0]
     DIC_GPU_base[key] = BASE[i][11+act]
     DIC_GPU_only[key] = GPU[i][11+act]
     DIC_PIM_base[key] = NEWTON[i][12+act]
@@ -78,6 +80,7 @@ def process(model):
 
   for i in range(len(END_gpu)):
     key = str(END_gpu[i][2]) + str(END_gpu[i][5]) + str(END_gpu[i][4]) + str(END_gpu[i][6]) + str(END_gpu[i][7][3]) + str(END_gpu[i][8]) + str(END_gpu[i][9])
+    END_gpu[i].append(DIC_node_name.get(key, 0))
     END_gpu[i].append(DIC_GPU_only.get(key,0))
     END_gpu[i].append(DIC_PIM_base.get(key,0))
     END_gpu[i].append(min(END_gpu[i][-2], END_gpu[i][-1])) # total
@@ -108,7 +111,7 @@ def process(model):
 
   with open(f'gpu_end_to_end_{model}_{args.n_channel}_{args.n_gwrite}{postfix}.csv', 'w',newline='') as f:
     write = csv.writer(f)
-    write.writerow(head)
+    write.writerow(head_split)
     write.writerows(END_gpu)
 
 os.system(f"python3 /root/PIMFlow/layerwise/inspect_shape.py --model={args.model} --split_ratio=100 --full --n_channel={args.n_channel}")
