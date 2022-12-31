@@ -269,7 +269,9 @@ for p in worst_pipelines:
 
 # final
 
-os.system(f'mkdir -p /root/PIMFlow/{args.model}/{args.policy}')
+print(optimal_name)
+
+os.system(f'mkdir -p /root/PIMFlow/{args.model}/{args.policy}/{args.n_gwrite}')
 OPTIMAL=[]
 
 
@@ -308,13 +310,13 @@ for i, k in enumerate(optimal_name):
   if k[1] == "Newton+" or k[1] == "Newton++":
     print(k)
     if k[2] != 0:
-      os.system(f'cp -r /root/PIMFlow/layerwise/result_simulate/{args.model}/{k[2]}_16/traces-{k[3]} /root/PIMFlow/{args.model}/{args.policy}/trace-{k[0]}')
+      os.system(f'cp -r /root/PIMFlow/layerwise/result_simulate/{args.model}/{k[2]}_16/traces-{k[3]} /root/PIMFlow/{args.model}/{args.policy}/{args.n_gwrite}/trace-{k[0]}')
     optimal_name[i][3] = f'trace-{k[0]}'
     OPTIMAL.append(k)
   if k[1] == "split":
     print(k)
     if k[2] != 0:
-      os.system(f'cp -r /root/PIMFlow/layerwise/result_simulate/{args.model}/{k[2]}_16/traces-{k[3]} /root/PIMFlow/{args.model}/{args.policy}/trace-{k[0]}')
+      os.system(f'cp -r /root/PIMFlow/layerwise/result_simulate/{args.model}/{k[2]}_16/traces-{k[3]} /root/PIMFlow/{args.model}/{args.policy}/{args.n_gwrite}/trace-{k[0]}')
     optimal_name[i][3] = f'trace-{k[0]}'
     OPTIMAL.append(k)
   elif k[1] == "pipeline" and k[3] != "pim":
@@ -322,8 +324,8 @@ for i, k in enumerate(optimal_name):
       for j, row in enumerate(pipeline1_onnx):
         if row[0]== k[3]:
           optimal_name[i].append(pipeline1_onnx[j-1][0])
-          os.system(f'cp -r /root/PIMFlow/pipeline/result_simulate/{args.model}/{k[2]}_16/traces-{k[3]} /root/PIMFlow/{args.model}/{args.policy}/trace-{k[0]}_2')
-          os.system(f'cp -r /root/PIMFlow/pipeline/result_simulate/{args.model}/{k[2]}_16/traces-{k[4]} /root/PIMFlow/{args.model}/{args.policy}/trace-{k[0]}_1')
+          os.system(f'cp -r /root/PIMFlow/pipeline/result_simulate/{args.model}/{k[2]}_16/traces-{k[3]} /root/PIMFlow/{args.model}/{args.policy}/{args.n_gwrite}/trace-{k[0]}_2')
+          os.system(f'cp -r /root/PIMFlow/pipeline/result_simulate/{args.model}/{k[2]}_16/traces-{k[4]} /root/PIMFlow/{args.model}/{args.policy}/{args.n_gwrite}/trace-{k[0]}_1')
           optimal_name[i][3] = f'trace-{k[0]}_1'
           optimal_name[i][4] = f'trace-{k[0]}_2'
           optimal_name[i][3] = f'trace-{k[0]}_1'
@@ -333,8 +335,8 @@ for i, k in enumerate(optimal_name):
       for j, row in enumerate(pipeline2_onnx):
         if row[0]== k[3]:
           optimal_name[i].append(pipeline2_onnx[j+1][0])
-          os.system(f'cp -r /root/PIMFlow/pipeline/result_simulate/{args.model}/{k[2]}_16/traces-{k[3]} /root/PIMFlow/{args.model}/{args.policy}/trace-{k[0]}_1')
-          os.system(f'cp -r /root/PIMFlow/pipeline/result_simulate/{args.model}/{k[2]}_16/traces-{k[4]} /root/PIMFlow/{args.model}/{args.policy}/trace-{k[0]}_2')
+          os.system(f'cp -r /root/PIMFlow/pipeline/result_simulate/{args.model}/{k[2]}_16/traces-{k[3]} /root/PIMFlow/{args.model}/{args.policy}/{args.n_gwrite}/trace-{k[0]}_1')
+          os.system(f'cp -r /root/PIMFlow/pipeline/result_simulate/{args.model}/{k[2]}_16/traces-{k[4]} /root/PIMFlow/{args.model}/{args.policy}/{args.n_gwrite}/trace-{k[0]}_2')
           optimal_name[i][3] = f'trace-{k[0]}_1'
           optimal_name[i][4] = f'trace-{k[0]}_2'
           optimal_name[i].insert(1,optimal_name[i+1][0])
@@ -342,8 +344,8 @@ for i, k in enumerate(optimal_name):
       for j, row in enumerate(pipeline3_onnx):
         if row[0]== k[3]:
           optimal_name[i].append(pipeline3_onnx[j-1][0])
-          os.system(f'cp -r /root/PIMFlow/pipeline/result_simulate/{args.model}/{k[2]}_16/traces-{k[3]} /root/PIMFlow/{args.model}/{args.policy}/trace-{k[0]}_2')
-          os.system(f'cp -r /root/PIMFlow/pipeline/result_simulate/{args.model}/{k[2]}_16/traces-{k[4]} /root/PIMFlow/{args.model}/{args.policy}/trace-{k[0]}_1')
+          os.system(f'cp -r /root/PIMFlow/pipeline/result_simulate/{args.model}/{k[2]}_16/traces-{k[3]} /root/PIMFlow/{args.model}/{args.policy}/{args.n_gwrite}/trace-{k[0]}_2')
+          os.system(f'cp -r /root/PIMFlow/pipeline/result_simulate/{args.model}/{k[2]}_16/traces-{k[4]} /root/PIMFlow/{args.model}/{args.policy}/{args.n_gwrite}/trace-{k[0]}_1')
           optimal_name[i][3] = f'trace-{k[0]}_1'
           optimal_name[i][4] = f'trace-{k[0]}_2'
           optimal_name[i].insert(0,optimal_name[i-1][0])
@@ -351,9 +353,11 @@ for i, k in enumerate(optimal_name):
     OPTIMAL.append(k)
 
 
-with open(f'solve_{args.model}_{args.n_gwrite}{postfix}.csv', 'w',newline='') as f:
+with open(f'solve_{args.model}_{args.policy}_{args.n_gwrite}{postfix}.csv', 'w',newline='') as f:
   write = csv.writer(f)
   write.writerows(OPTIMAL)
-os.system(f'mv solve_{args.model}_{args.n_gwrite}{postfix}.csv /root/PIMFlow/{args.model}/{args.policy}/')
+os.system(f'mv solve_{args.model}_{args.policy}_{args.n_gwrite}{postfix}.csv /root/PIMFlow/{args.model}/{args.policy}/{args.n_gwrite}/')
 for i in OPTIMAL:
   print(i)
+
+
