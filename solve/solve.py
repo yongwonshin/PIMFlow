@@ -73,9 +73,13 @@ for i, row in enumerate(gpu.values):
   cycle = min(float(row[-5]), float(row[-4]))
   dp_b[i+1][1] = cycle
   if args.policy == "Newton++" or args.policy == "Pipeline":
+    dp_s[i+1][1] = cycle
+    dp_ws[i+1][1] = cycle
     optimal_name.append([row[0],"Newton++",row[-2],row[-6]])
     print(optimal_name)
   elif args.policy == "Newton+":
+    dp_s[i+1][1] = cycle
+    dp_ws[i+1][1] = cycle
     optimal_name.append([row[0],"Newton+",row[-2],row[-6]])
   newton_cycle += cycle
 
@@ -85,10 +89,10 @@ for i, row in enumerate(split.values):
   cycle = float(row[-3])
   if math.isclose(float(row[-1]), 0):
     cycle = dp_b[i+1][1]
-  dp_s[i+1][1] = cycle
-  dp_ws[i+1][1] = cycle
   if args.policy == "MDDP" or args.policy == "PIMFlow":
-      optimal_name.append([row[0],"split",row[-2],row[-6]])
+    dp_s[i+1][1] = cycle
+    dp_ws[i+1][1] = cycle 
+    optimal_name.append([row[0],"split",row[-2],row[-6]])
   split_cycle += cycle
 
 
