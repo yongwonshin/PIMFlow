@@ -32,9 +32,9 @@ pipeline2 = None
 pipeline3 = None
 if os.path.exists(f'../pipeline/{args.model}_pipeline1_{args.n_channel}_{args.n_gwrite}{postfix}.csv'):
   pipeline1 = pd.read_csv(f'../pipeline/{args.model}_pipeline1_{args.n_channel}_{args.n_gwrite}{postfix}.csv', delimiter=',')
-if os.path.exists(f'../pipeline/{args.model}_pipeline2_{args.n_channel}.csv'):
+if os.path.exists(f'../pipeline/{args.model}_pipeline2_{args.n_channel}_{args.n_gwrite}{postfix}.csv'):
   pipeline2 = pd.read_csv(f'../pipeline/{args.model}_pipeline2_{args.n_channel}_{args.n_gwrite}{postfix}.csv', delimiter=',')
-if os.path.exists(f'../pipeline/{args.model}_pipeline3_{args.n_channel}.csv'):
+if os.path.exists(f'../pipeline/{args.model}_pipeline3_{args.n_channel}_{args.n_gwrite}{postfix}.csv'):
   pipeline3 = pd.read_csv(f'../pipeline/{args.model}_pipeline3_{args.n_channel}_{args.n_gwrite}{postfix}.csv', delimiter=',')
 
 
@@ -255,7 +255,7 @@ for p in worst_pipelines:
   i, l = p
   b = [dp_ws[i+j][1] for j in range(l)]
 
-
+print(optimal_name)
 print(f"=== N_CHANNEL: {args.n_channel}, N_GWRITE: {args.n_gwrite}, ramulator_disable_gwrite_latency_hiding: {args.ramulator_disable_gwrite_latency_hiding} ===")
 print(f"newton++ (vs baseline): {round(baseline_cycle / newton_cycle, 3)} ({newton_cycle - baseline_cycle})")
 print(f"pipeline (vs baseline): {round(baseline_cycle / dp_b[1][N], 3)} ({dp_b[1][N] - baseline_cycle})")
