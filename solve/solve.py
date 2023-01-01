@@ -75,12 +75,12 @@ for i, row in enumerate(gpu.values):
   if args.policy == "Newton++" or args.policy == "Pipeline":
     dp_s[i+1][1] = cycle
     dp_ws[i+1][1] = cycle
-    optimal_name.append([row[0],"Newton++",row[-2],row[-6]])
+    optimal_name.append([row[0],"split",row[-2],row[-6]])
     print(optimal_name)
   elif args.policy == "Newton+":
     dp_s[i+1][1] = cycle
     dp_ws[i+1][1] = cycle
-    optimal_name.append([row[0],"Newton+",row[-2],row[-6]])
+    optimal_name.append([row[0],"split",row[-2],row[-6]])
   newton_cycle += cycle
 
 split_cycle = 0
@@ -91,7 +91,7 @@ for i, row in enumerate(split.values):
     cycle = dp_b[i+1][1]
   if args.policy == "MDDP" or args.policy == "PIMFlow":
     dp_s[i+1][1] = cycle
-    dp_ws[i+1][1] = cycle 
+    dp_ws[i+1][1] = cycle
     optimal_name.append([row[0],"split",row[-2],row[-6]])
   split_cycle += cycle
 
@@ -359,5 +359,3 @@ with open(f'solve_{args.model}_{args.policy}_{args.n_gwrite}{postfix}.csv', 'w',
 os.system(f'mv solve_{args.model}_{args.policy}_{args.n_gwrite}{postfix}.csv /root/PIMFlow/{args.model}/{args.policy}/{args.n_gwrite}/')
 for i in OPTIMAL:
   print(i)
-
-

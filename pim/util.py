@@ -496,4 +496,4 @@ def get_kernel_start_and_end(trace_path, n_run=3):
 
   assert len(runs) == n_run
 
-  return (runs[0][0], runs[2][1])
+  return (runs[2][0]+1, runs[2][1]-1)

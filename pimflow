@@ -30,7 +30,7 @@ def parse_arguments():
   parser.add_argument("--accel_sim_gpu", choices=["SM75_RTX2060"], default="SM75_RTX2060")
   parser.add_argument("--accel_sim_kernel_launch_latency", type=int, default=5010)
   parser.add_argument("--accel_sim_n_channel", type=int, default=16)
-  parser.add_argument("--ramulator_disable_gwrite_latency_hiding", action="store_true")
+  parser.add_argument("--policy", choices=["None", "Newton+", "Newton++", "MDDP", "Pipeline", "PIMFlow"], default="PIMFlow")
   args = parser.parse_args()
 
   if args.mode == "profile" and (args.transform is None):
@@ -149,20 +149,20 @@ def get_pim_cycle(path):
         cycle = scale * int(line.split(" ")[1].strip())
   return cycle
 
-def stat(network, gpu_only=False):
-  postfix = ""
+def stat(args, gpu_only=False):
+  postfix = f"{args.policy}"
   if gpu_only:
-    postfix = "-org"
+    postfix = "org"
   other_cycle = 0
   par_cycle = 0
-  other_cycle = get_gpu_cycle(f"traces-{network}{postfix}/sim.txt") / 3
+  other_cycle = get_gpu_cycle(f"traces-{args.network}-{args.accel_sim_n_channel}-{postfix}/sim.txt")
   i = 0
   while not gpu_only and True:
     found = False
     gpu_cycle = 0
     pim_cycle = 0
-    gpu_file = f"traces-{network}{postfix}/sim.{i}.gpu.txt"
-    pim_file = f"traces-{network}{postfix}/sim.{i}.pim.txt"
+    gpu_file = f"traces-{args.network}-{args.accel_sim_n_channel}-{postfix}/sim.{i}.gpu.txt"
+    pim_file = f"traces-{args.network}-{args.accel_sim_n_channel}-{postfix}/sim.{i}.pim.txt"
     if os.path.exists(gpu_file):
       gpu_cycle = get_gpu_cycle(gpu_file)
       found = True
@@ -180,10 +180,17 @@ def extract_profiled_trace(model: str):
   if not os.path.exists(model) and os.path.exists(f"./data/{model}.tar.gz"):
     os.system(f"tar -xzf ./data/{model}.tar.gz -C .")
 
-def transform_graph(network):
+def transform_graph(args):
   split = {}
   pipeline = []
-  with open(f'./{network}/solve_{network}.csv', newline='') as csvfile:
+
+  n_gwrite = 4
+  postfix = ""
+  if args.policy == "Newton+":
+    n_gwrite = 1
+    postfix = "_noopt"
+
+  with open(f'./{args.network}/{args.policy}/{n_gwrite}/solve_{args.network}_{args.policy}_{n_gwrite}{postfix}.csv', newline='') as csvfile:
     reader = csv.reader(csvfile, delimiter=',')
     for row in reader:
       if row[1] == "split":
@@ -195,23 +202,24 @@ def transform_graph(network):
       else:
         raise Exception("Must NOT reach here!")
 
-  if not os.path.exists(f"{network}.onnx"):
-    onnx_model = make_model(network)
+  if not os.path.exists(f"{args.network}.onnx"):
+    onnx_model = make_model(args.network)
   else:
-    onnx_model = onnx.load(f"{network}.onnx")
+    onnx_model = onnx.load(f"{args.network}.onnx")
   onnx.checker.check_model(onnx_model)
+  onnx_model = onnx.shape_inference.infer_shapes(onnx_model)
 
   node_map = {}
   onnx_model = InputSplit(-1, split, node_map=node_map).transform(onnx_model)
   for kv in pipeline:
     onnx_model = Pipeline(node_map=node_map).transform(onnx_model, kv['nodes'], stage=2, is_gpu_first=kv['is_gpu_first'])
   onnx_model = OffloadFC().transform(onnx_model)
-  onnx.save(onnx_model, f"{network}_transformed_opt.onnx")
+  onnx.save(onnx_model, f"{args.network}_{args.accel_sim_n_channel}_{args.policy}_transformed_opt.onnx")
 
   return node_map
 
-def partition_graph(network):
-  onnx_model = onnx.load(f"{network}_transformed_opt.onnx")
+def partition_graph(args):
+  onnx_model = onnx.load(f"{args.network}_{args.accel_sim_n_channel}_{args.policy}_transformed_opt.onnx")
   graph = onnx_model.graph
   input_node = onnx_model.graph.node[0]
   shape_dict = {"input": get_arg_shape(graph, input_node, input_node.input[0])}
@@ -241,14 +249,16 @@ def partition_graph(network):
   with tvm.transform.PassContext(opt_level=2):
     lib = relay.build(mod, target, params=params)
   os.system("mkdir -p ./tmp")
-  lib = build_pim_kernels(lib, "./tmp", f"compile-{network}.so")
+  lib = build_pim_kernels(lib, "./tmp", f"compile-{args.network}-{args.accel_sim_n_channel}-{args.policy}.so")
 
   return lib
 
-def load_module(network):
+def load_module(args):
   dev=tvm.cuda(0)
-  lib = tvm.runtime.load_module(f"compile-{network}.so")
-  module = graph_executor.GraphModule(lib["default"](dev))
+  module = None
+  # if not args.policy == "None":
+  #   lib = tvm.runtime.load_module(f"compile-{args.network}-{args.accel_sim_n_channel}-{args.policy}.so")
+  #   module = graph_executor.GraphModule(lib["default"](dev))
   with open(f"input.pkl","rb") as f:
     x = pickle.load(f)
 
@@ -260,13 +270,15 @@ def check_input(network):
     with open(f"input.pkl","wb") as f:
       pickle.dump(x, f)
 
-def trace(network, mode):
-  check_input(network)
+def trace(args, mode):
+  check_input(args.network)
 
   if mode == "run_opt":
     postfix = ""
+    policy = args.policy
   elif mode == "run_gpu_only":
-    postfix = "-org"
+    postfix = "org"
+    policy = ""
   else:
     raise Exception("Must NOT reach here!")
 
@@ -275,17 +287,17 @@ def trace(network, mode):
   os.environ["CUDA_VISIBLE_DEVICES"] = f"{dev}"
 
   # generate trace for optimal solution
-  os.environ["TRACES_PATH"] = f"traces-{network}{postfix}"
+  os.environ["TRACES_PATH"] = f"traces-{args.network}-{args.accel_sim_n_channel}-{policy}{postfix}"
   os.environ["DYNAMIC_KERNEL_LIMIT_START"] = "1000000000"
-  os.system(f"LD_PRELOAD=/root/PIMFlow_accel-sim-framework/util/tracer_nvbit/tracer_tool/tracer_tool.so ./pimflow -m={mode} --trace -n={network}")
+  os.system(f"LD_PRELOAD=/root/PIMFlow_accel-sim-framework/util/tracer_nvbit/tracer_tool/tracer_tool.so ./pimflow -m={mode} --trace -n={args.network} --accel_sim_n_channel={args.accel_sim_n_channel} --policy={args.policy}")
 
-  kernel_start, kernel_end = get_kernel_start_and_end(f"traces-{network}{postfix}")
+  kernel_start, kernel_end = get_kernel_start_and_end(f"traces-{args.network}-{args.accel_sim_n_channel}-{policy}{postfix}")
   os.environ["DYNAMIC_KERNEL_LIMIT_START"] = f"{kernel_start}"
   os.environ["DYNAMIC_KERNEL_LIMIT_END"] = f"{kernel_end}"
-  os.system(f"LD_PRELOAD=/root/PIMFlow_accel-sim-framework/util/tracer_nvbit/tracer_tool/tracer_tool.so ./pimflow -m={mode} --trace -n={network}")
-  os.system(f"/root/PIMFlow_accel-sim-framework/util/tracer_nvbit/tracer_tool/traces-processing/post-traces-processing ./traces-{network}{postfix}/kernelslist")
+  os.system(f"LD_PRELOAD=/root/PIMFlow_accel-sim-framework/util/tracer_nvbit/tracer_tool/tracer_tool.so ./pimflow -m={mode} --trace -n={args.network} --accel_sim_n_channel={args.accel_sim_n_channel} --policy={args.policy}")
+  os.system(f"/root/PIMFlow_accel-sim-framework/util/tracer_nvbit/tracer_tool/traces-processing/post-traces-processing ./traces-{args.network}-{args.accel_sim_n_channel}-{policy}{postfix}/kernelslist")
 
-def run_opt(network, n=1):
+def run_opt(args, n=1):
   # module, x = load_module(network)
 
   # dev = tvm.cuda(0)
@@ -299,9 +311,9 @@ def run_opt(network, n=1):
   #   module.run()
   #   marker.forward(False)
 
-  _, x = load_module(network)
+  _, x = load_module(args)
 
-  onnx_model = onnx.load(f"{network}_transformed_opt.onnx")
+  onnx_model = onnx.load(f"{args.network}_{args.accel_sim_n_channel}_{args.policy}_transformed_opt.onnx")
   graph = onnx_model.graph
   input_node = onnx_model.graph.node[0]
   shape_dict = {"input": get_arg_shape(graph, input_node, input_node.input[0])}
@@ -331,7 +343,7 @@ def run_opt(network, n=1):
   with tvm.transform.PassContext(opt_level=2):
     lib = relay.build(mod, target, params=params)
   os.system("mkdir -p ./tmp")
-  lib = build_pim_kernels(lib, "./tmp", f"compile-{network}.so")
+  lib = build_pim_kernels(lib, "./tmp", f"compile-{args.network}-{args.accel_sim_n_channel}-{args.policy}.so")
 
   dev = tvm.cuda(0)
   module = graph_executor.GraphModule(lib["default"](dev))
@@ -345,13 +357,13 @@ def run_opt(network, n=1):
     module.run()
     marker.forward(False)
 
-def run_gpu_only(network, n=1):
-  _, x = load_module(network)
+def run_gpu_only(args, n=1):
+  _, x = load_module(args)
 
-  if not os.path.exists(f"{network}.onnx"):
-    onnx_model = make_model(network)
+  if not os.path.exists(f"{args.network}.onnx"):
+    onnx_model = make_model(args.network)
   else:
-    onnx_model = onnx.load(f"{network}.onnx")
+    onnx_model = onnx.load(f"{args.network}.onnx")
 
   shape_dict = {"input": x.shape}
   mod, params = relay.frontend.from_onnx(onnx_model, shape_dict)
@@ -388,8 +400,10 @@ def run_gpu_only(network, n=1):
     marker.forward(False)
 
 def set_envs(args):
-  if args.ramulator_disable_gwrite_latency_hiding:
+  if args.policy == "Newton+":
     os.environ["RAMULATOR_DISABLE_GWRITE_LATENCY_HIDING"] = "1"
+  os.environ["PIMFLOW_POLICY"] = args.policy
+  os.environ["PIMFLOW_N_CHANNEL"] = f"{args.accel_sim_n_channel}"
 
 if __name__ == '__main__':
   args = parse_arguments()
@@ -401,45 +415,45 @@ if __name__ == '__main__':
     solve(args)
   elif args.mode == "transform":
     extract_profiled_trace(args.network)
-    node_map = transform_graph(args.network)
-    with open(f"{args.network}_node_map.txt", "w") as f:
+    node_map = transform_graph(args)
+    with open(f"{args.network}_{args.accel_sim_n_channel}_{args.policy}_node_map.txt", "w") as f:
       for k, v in node_map.items():
         f.write(f"{k},{','.join(v)}\n")
   elif args.mode == "build":
-    _ = partition_graph(args.network)
+    _ = partition_graph(args)
   elif args.mode == "trace_opt":
-    trace(args.network, "run_opt")
+    trace(args, "run_opt")
   elif args.mode == "trace_gpu_only":
-    trace(args.network, "run_gpu_only")
+    trace(args, "run_gpu_only")
   elif args.mode == "trace":
-    os.system(f"./pimflow -m=trace_opt -n={args.network}")
-    os.system(f"./pimflow -m=trace_gpu_only -n={args.network}")
+    os.system(f"./pimflow -m=trace_opt -n={args.network} --accel_sim_n_channel={args.accel_sim_n_channel} --policy={args.policy}")
+    os.system(f"./pimflow -m=trace_gpu_only -n={args.network} --accel_sim_n_channel={args.accel_sim_n_channel} --policy={args.policy}")
   elif args.mode == "run_opt":
     if not args.trace:
       os.environ["TVM_USE_SIMULATOR"] = "1"
-      os.environ["TVM_TRACES_PATH"] = f"traces-{args.network}/"
+      os.environ["TVM_TRACES_PATH"] = f"traces-{args.network}-{args.accel_sim_n_channel}-{args.policy}/"
       os.environ["TVM_NETWORK"] = f"{args.network}"
-      run_opt(args.network, 1)
+      run_opt(args, 1)
     else:
-      run_opt(args.network, 3)
+      run_opt(args, 3)
   elif args.mode == "run_gpu_only":
     if not args.trace:
       os.environ["TVM_USE_SIMULATOR"] = "1"
-      os.environ["TVM_TRACES_PATH"] = f"traces-{args.network}-org/"
+      os.environ["TVM_TRACES_PATH"] = f"traces-{args.network}-{args.accel_sim_n_channel}-org/"
       os.environ["TVM_NETWORK"] = f"{args.network}"
-      run_gpu_only(args.network, 1)
+      run_gpu_only(args, 1)
     else:
-      run_gpu_only(args.network, 3)
+      run_gpu_only(args, 3)
   elif args.mode == "run":
-    os.system(f"./pimflow -m=transform -n={args.network}")
-    os.system(f"./pimflow -m=build -n={args.network}")
+    os.system(f"./pimflow -m=transform -n={args.network} --accel_sim_n_channel={args.accel_sim_n_channel} --policy={args.policy}")
+    os.system(f"./pimflow -m=build -n={args.network} --accel_sim_n_channel={args.accel_sim_n_channel} --policy={args.policy}")
     # os.system(f"./pimflow -m=trace -n={args.network}")
     if args.gpu_only:
-      os.system(f"./pimflow -m=trace_gpu_only -n={args.network}")
-      os.system(f"./pimflow -m=run_gpu_only -n={args.network}")
+      os.system(f"./pimflow -m=trace_gpu_only -n={args.network} --accel_sim_n_channel={args.accel_sim_n_channel} --policy={args.policy}")
+      os.system(f"./pimflow -m=run_gpu_only -n={args.network} --accel_sim_n_channel={args.accel_sim_n_channel} --policy={args.policy}")
     else:
-      os.system(f"./pimflow -m=trace_opt -n={args.network}")
-      os.system(f"./pimflow -m=run_opt -n={args.network}")
+      os.system(f"./pimflow -m=trace_opt -n={args.network} --accel_sim_n_channel={args.accel_sim_n_channel} --policy={args.policy}")
+      os.system(f"./pimflow -m=run_opt -n={args.network} --accel_sim_n_channel={args.accel_sim_n_channel} --policy={args.policy}")
 
   elif args.mode == "stat":
     if args.layerwise:
@@ -449,10 +463,10 @@ if __name__ == '__main__':
     elif args.conv_only:
       stat_conv_only(args)
     else:
-      gpu_cycle = stat(args.network, gpu_only=True)
-      pimflow_cycle = stat(args.network)
+      gpu_cycle = stat(args, gpu_only=True)
+      policy_cycle = stat(args)
       print(f"GPU CYCLE: {gpu_cycle}")
-      print(f"PIMFLOW CYCLE: {pimflow_cycle}")
-      print(f"PIMFLOW SPEEDUP: {round(gpu_cycle / pimflow_cycle, 2)}")
+      print(f"{args.policy} CYCLE: {policy_cycle}")
+      print(f"{args.policy} SPEEDUP: {round(gpu_cycle / policy_cycle, 2)}")
   else:
     raise Exception("Must NOT reach here!")
