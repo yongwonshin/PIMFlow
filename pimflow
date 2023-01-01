@@ -445,9 +445,10 @@ if __name__ == '__main__':
     else:
       run_gpu_only(args, 3)
   elif args.mode == "run":
-    os.system(f"./pimflow -m=transform -n={args.network} --accel_sim_n_channel={args.accel_sim_n_channel} --policy={args.policy}")
-    os.system(f"./pimflow -m=build -n={args.network} --accel_sim_n_channel={args.accel_sim_n_channel} --policy={args.policy}")
-    # os.system(f"./pimflow -m=trace -n={args.network}")
+    if not args.gpu_only:
+      os.system(f"./pimflow -m=transform -n={args.network} --accel_sim_n_channel={args.accel_sim_n_channel} --policy={args.policy}")
+      os.system(f"./pimflow -m=build -n={args.network} --accel_sim_n_channel={args.accel_sim_n_channel} --policy={args.policy}")
+
     if args.gpu_only:
       os.system(f"./pimflow -m=trace_gpu_only -n={args.network} --accel_sim_n_channel={args.accel_sim_n_channel} --policy={args.policy}")
       os.system(f"./pimflow -m=run_gpu_only -n={args.network} --accel_sim_n_channel={args.accel_sim_n_channel} --policy={args.policy}")
