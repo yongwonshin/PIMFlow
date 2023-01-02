@@ -199,7 +199,7 @@ def transform_graph(args):
       if row[1] == "split":
         split[row[0]] = int(row[2])
       elif row[2] == "pipeline":
-        pipeline.append({'nodes': row[:2], 'is_gpu_first': int(row[4] != 1)})
+        pipeline.append({'nodes': row[:2], 'is_gpu_first': int(row[3]) != 1})
       elif row[3] == "pipeline":
         pipeline.append({'nodes': row[:3], 'is_gpu_first': False})
       else:
