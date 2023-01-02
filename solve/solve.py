@@ -228,23 +228,23 @@ def pipeline_type_to(t):
   else:
     return "p"
 
-removes = []
-for p in pipelines:
-  i, l = p
-  b = [dp_s[i+j][1] for j in range(l)]
-  if abs(1 - dp_s[i][l] / sum(b)) < 0.05:
-    removes.append(p)
-for r in removes:
-  pipelines.remove(r)
+# removes = []
+# for p in pipelines:
+#   i, l = p
+#   b = [dp_s[i+j][1] for j in range(l)]
+#   if abs(1 - dp_s[i][l] / sum(b)) < 0.05:
+#     removes.append(p)
+# for r in removes:
+#   pipelines.remove(r)
 
-removes = []
-for p in worst_pipelines:
-  i, l = p
-  b = [dp_s[i+j][1] for j in range(l)]
-  if abs(1 - dp_ws[i][l] / sum(b)) < 0.30:
-    removes.append(p)
-for r in removes:
-  worst_pipelines.remove(r)
+# removes = []
+# for p in worst_pipelines:
+#   i, l = p
+#   b = [dp_s[i+j][1] for j in range(l)]
+#   if abs(1 - dp_ws[i][l] / sum(b)) < 0.30:
+#     removes.append(p)
+# for r in removes:
+#   worst_pipelines.remove(r)
 
 for p in pipelines:
   i, l = p
