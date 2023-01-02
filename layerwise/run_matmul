@@ -167,7 +167,7 @@ def statistics(configs):
   if args.split_ratio == 100:
     gpu_cycles = {}
     for c in configs:
-      fname = f"traces-matmul-{c[0]}-baseline.txt"
+      fname = f"traces-matmul-{c[0]}-{args.split_ratio}-baseline.txt"
       start = 0
       end = 0
       with open(fname) as f:

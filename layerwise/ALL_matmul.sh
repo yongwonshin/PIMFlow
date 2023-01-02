@@ -20,3 +20,10 @@ for (( i = 10 ; i < 101 ; i = i + 10 )); do
   fi
   sh clean.sh $MODEL-matmul $i 16
 done
+
+python3 process_csv.py --model=$MODEL --n_gwrite=1
+python3 process_csv.py --model=$MODEL --n_gwrite=1 --ramulator_disable_gwrite_latency_hiding
+python3 process_csv.py --model=$MODEL --n_gwrite=2
+python3 process_csv.py --model=$MODEL --n_gwrite=2 --ramulator_disable_gwrite_latency_hiding
+python3 process_csv.py --model=$MODEL --n_gwrite=4
+python3 process_csv.py --model=$MODEL --n_gwrite=4 --ramulator_disable_gwrite_latency_hiding
