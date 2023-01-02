@@ -30,6 +30,9 @@ MODEL_LIST = [
   'vit-b-16', 'vit-l-16',
   # convnext
   'convnext-tiny', 'convnext-small', 'convnext-base', 'convnext-large',
+  # bert
+  'bert-large-1x64', 'bert-large-1x3',
+  # test
   'toy', 'memopt',
 ]
 

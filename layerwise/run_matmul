@@ -1,0 +1,243 @@
+from subprocess import Popen
+import time
+import argparse
+import multiprocessing
+import os
+import numpy as np
+import csv
+import re
+import math
+from pim.util import MODEL_LIST
+from torch.cuda import device_count
+parser = argparse.ArgumentParser()
+group = parser.add_mutually_exclusive_group(required=True)
+group.add_argument("--trace", action="store_true", help="create trace")
+group.add_argument("--simulate", action="store_true", help="simulate")
+group.add_argument("--pim_codegen", action="store_true", help="pim codegen")
+group.add_argument("--stat", action="store_true", help="record statistics")
+group.add_argument("--pim", action="store_true", help="pim_cycle")
+parser.add_argument("--gpgpusim_config", help="gpgpusim config (e.g. SM75_RTX2060")
+parser.add_argument("--split_ratio", type=int, default=0)
+parser.add_argument("--device_id", type=int, default=0)
+parser.add_argument("--kernel_launch_latency", type=int, default=5010)
+parser.add_argument("--n_channel", type=int, default=16)
+parser.add_argument("--n_gwrite", type=int, default=4)
+parser.add_argument("--model", help="model", choices=MODEL_LIST, required=True)
+args = parser.parse_args()
+
+if args.trace and (args.gpgpusim_config is None):
+  parser.error("--trace requires --gpgpusim_config")
+if args.simulate and (args.gpgpusim_config is None):
+  parser.error("--simulate requires --gpgpusim_config")
+
+NGPU=list(range(device_count()))
+NCPU=multiprocessing.cpu_count()
+
+CONFIG=[]
+with open(f"{args.model}_{args.n_channel}.onnx_matmul.csv") as f:
+  rdr = csv.reader(f)
+  for line in rdr:
+    CONFIG.append(line)
+
+def get_device(n):
+  return NGPU[n % len(NGPU)]
+
+def make_args(config, n_mem):
+  script = ""
+  if args.trace:
+    script = "trace_matmul.sh"
+  elif args.simulate:
+    script = "sim_matmul.sh"
+
+  dev = get_device(n_mem)
+  print(config)
+
+  batch_size = math.ceil(int(config[5]) * args.split_ratio / 100)
+  a = f"export CUDA_VISIBLE_DEVICES={dev} && export TRACES_PATH=traces-matmul-{config[0]}-{args.split_ratio} && echo $CUDA_VISIBLE_DEVICES && ./{script} {config[0]}-{args.split_ratio} {config[1]} {config[2]} {config[3]} {config[4]} {batch_size} {args.gpgpusim_config} {args.split_ratio} {args.n_channel}"
+  print(a)
+  return a
+
+def trace(configs):
+  procs = []
+  n = 0
+  r = 0
+  for i in range(min(len(NGPU), len(configs))):
+    procs.append(Popen(make_args(configs[i], i), shell=True, start_new_session=True))
+    r += 1
+    time.sleep(3)
+  while True:
+    if n >= len(configs):
+      break
+    for i, p in enumerate(procs):
+      if p is None:
+        continue
+      if p.poll() is not None:
+        if r < len(configs):
+          procs[i] = Popen(make_args(configs[r], i), shell=True, start_new_session=True)
+          r += 1
+        else:
+          procs[i] = None
+        n += 1
+        time.sleep(3)
+    time.sleep(3)
+
+def simulate(configs):
+  procs = []
+  n = 0
+  r = 0
+  for i in range(min(NCPU, len(configs))):
+    procs.append(Popen(make_args(configs[i], i), shell=True, start_new_session=True))
+    r += 1
+    time.sleep(3)
+
+  while True:
+    if n >= len(configs):
+      break
+
+    for i, p in enumerate(procs):
+      if p is None:
+        continue
+
+      if p.poll() is not None:
+        if r < len(configs):
+          procs[i] = Popen(make_args(configs[r], i), shell=True, start_new_session=True)
+        else:
+          procs[i] = None
+
+        r += 1
+        n += 1
+        time.sleep(3)
+
+    time.sleep(3)
+
+def statistics(configs):
+  if args.gpgpusim_config == "SM75_RTX2060":
+    # scale=1.605882353 # HBM
+    scale = 1.56 # GDDR6
+  elif args.gpgpusim_config == "SM7_TITANV":
+    scale=1.411764706
+  else:
+    assert False
+
+  pim_cycles = {}
+  for c in configs:
+    pname = f"{c[0]}-{args.split_ratio}-matmul/PIM_trace_partition_{args.n_channel}_{args.n_gwrite}-{32-args.n_channel}.pim"
+    cyc = os.popen(f"/root/PIMFlow_ramulator/ramulator /root/PIMFlow_ramulator/configs/GDDR6-config.cfg --mode=dram {pname} | grep Cycle").read()
+    cyc = re.sub(r'[^0-9]', '', cyc)
+    if int(cyc) == 1: # no trace
+      continue
+    pim_cycles[c[0]]=int(cyc) * scale
+    print(pim_cycles[c[0]])
+
+  pim_cycles_noopt = {}
+  for c in configs:
+    pname = f"{c[0]}-{args.split_ratio}-matmul/PIM_trace_partition_{args.n_channel}_{args.n_gwrite}-{32-args.n_channel}.pim"
+    cyc = os.popen(f"RAMULATOR_DISABLE_GWRITE_LATENCY_HIDING=1 /root/PIMFlow_ramulator/ramulator /root/PIMFlow_ramulator/configs/GDDR6-config.cfg --mode=dram {pname} | grep Cycle").read()
+    cyc = re.sub(r'[^0-9]', '', cyc)
+    if int(cyc) == 1: # no trace
+      continue
+    pim_cycles_noopt[c[0]]=int(cyc) * scale
+    print(pim_cycles_noopt[c[0]])
+
+  gpu_cycles = {}
+  for c in configs:
+    fname = f"traces-matmul-{c[0]}-{args.split_ratio}.txt"
+    start = 0
+    end = 0
+    with open(fname) as f:
+      lines = f.readlines()
+
+      tot_runs = []
+      runs = []
+      energy = 0
+      for i, l in enumerate(lines):
+        if l.find("gpu_tot_sim_cycle") != -1:
+          tot_runs.append(int(lines[i].split("=")[1]))
+        if l.find("kernel_name") != -1 and l.find("forward_kernel_cuda") == -1:
+          runs.append(int(lines[i+1].split("=")[1]))
+      # assert len(runs) == 3
+      gpu_cycles[c[0]]=int(tot_runs[len(tot_runs)-1])
+
+  with open(f'{args.model}_matmul{args.split_ratio}_{args.n_channel}_{args.n_gwrite}.csv','w', newline='') as f:
+    wr = csv.writer(f)
+    wr.writerow(['kernel_name','row','col','bias','activation','GPU cycles','PIM cycles'])
+    for c in configs:
+      wr.writerow([c[0],c[1],c[2],c[3],c[4],gpu_cycles.get(c[0],0),pim_cycles.get(c[0],0)])
+
+  if args.split_ratio == 100:
+    gpu_cycles = {}
+    for c in configs:
+      fname = f"traces-matmul-{c[0]}-baseline.txt"
+      start = 0
+      end = 0
+      with open(fname) as f:
+        lines = f.readlines()
+
+        # if start != 3 or end != 3:
+        #   print(f"SKIP: {fname}")
+        #   continue
+        tot_runs = []
+        runs = []
+        energy = 0
+        for i, l in enumerate(lines):
+          if l.find("gpu_tot_sim_cycle") != -1:
+            tot_runs.append(int(lines[i].split("=")[1]))
+          if l.find("kernel_name") != -1 and l.find("forward_kernel_cuda") == -1:
+            runs.append(int(lines[i+1].split("=")[1]))
+        # assert len(runs) == 3
+        gpu_cycles[c[0]]=int(tot_runs[len(tot_runs)-1])
+
+    with open(f'{args.model}_matmul{args.split_ratio}-baseline.csv','w', newline='') as f:
+      wr = csv.writer(f)
+      wr.writerow(['kernel_name','row','col','bias','activation','GPU cycles','PIM cycles'])
+      for c in configs:
+        wr.writerow([c[0],c[1],c[2],c[3],c[4],gpu_cycles.get(c[0],0),0])
+
+def pim(configs):
+  if args.gpgpusim_config== "SM75_RTX2060":
+    # scale=1.605882353 # HBM
+    scale = 1.56 # GDDR6
+  elif args.gpgpusim_config== "SM7_TITANV":
+    scale=1.411764706
+  else:
+    assert False
+  pim_cycles = {}
+  with open(f'{args.model}_matmul0_{args.n_channel}_{args.n_gwrite}.csv','w', newline='') as f:
+    wr = csv.writer(f)
+    wr.writerow(['kernel_name','row','col','bias','activation','GPU cycles','PIM cycles'])
+    for c in configs:
+      pname = f"{c[0]}-0-matmul/PIM_trace_partition_{args.n_channel}_{args.n_gwrite}-{32 - args.n_channel}.pim"
+      cyc = os.popen(f"/root/PIMFlow_ramulator/ramulator /root/PIMFlow_ramulator/configs/GDDR6-config.cfg --mode=dram {pname} | grep Cycle").read()
+      cyc = re.sub(r'[^0-9]', '', cyc)
+      pim_cycles[c[0]]=int(cyc) * scale
+      wr.writerow([c[0],c[1],c[2],c[3],c[4],0,pim_cycles.get(c[0],0)])
+  pim_cycles_noopt = {}
+  with open(f'{args.model}_matmul0_{args.n_channel}_{args.n_gwrite}.csv','w', newline='') as f:
+    wr = csv.writer(f)
+    wr.writerow(['kernel_name','row','col','bias','activation','GPU cycles','PIM cycles'])
+    for c in configs:
+      pname = f"{c[0]}-0-matmul/PIM_trace_partition_{args.n_channel}_{args.n_gwrite}-{32 - args.n_channel}.pim"
+      cyc = os.popen(f"RAMULATOR_DISABLE_GWRITE_LATENCY_HIDING=1 /root/PIMFlow_ramulator/ramulator /root/PIMFlow_ramulator/configs/GDDR6-config.cfg --mode=dram {pname} | grep Cycle").read()
+      cyc = re.sub(r'[^0-9]', '', cyc)
+      pim_cycles_noopt[c[0]]=int(cyc) * scale
+      wr.writerow([c[0],c[1],c[2],c[3],c[4],0,pim_cycles_noopt.get(c[0],0)])
+
+if args.trace:
+  trace(CONFIG)
+
+if args.simulate:
+  simulate(CONFIG)
+
+if args.pim_codegen:
+  for config in CONFIG:
+    batch_size = math.ceil(int(config[5]) * args.split_ratio / 100)
+    os.system(f'sh pim_codegen.sh {config[0]}-{args.split_ratio}-matmul {config[1]} {config[2]} 1 1 1 0 0 1 1 {config[3]} {int(config[5]) - batch_size} 1 {args.n_channel} {args.n_gwrite}')
+
+if args.stat:
+  statistics(CONFIG)
+
+if args.pim:
+  for config in CONFIG:
+    os.system(f'sh pim_codegen.sh {config[0]}-0-matmul {config[1]} {config[2]} 1 1 1 0 0 1 1 {config[3]} {int(config[5])} 1 {args.n_channel} {args.n_gwrite}')
+  pim(CONFIG)
+print("Finished!")

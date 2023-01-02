@@ -134,8 +134,14 @@ model.half()
 x = get_random_input(args.model)
 x = x.half()
 
-if args.model in ['bert-large-1x1', 'bert-large-1x3', 'bert-large-1x32', 'bert-large-1x64', 'bert-large-1x128', 'bert-base-1x1', 'bert-base-1x3', 'bert-base-1x32', 'bert-base-1x64', 'bert-base-1x128']:
+if args.model in ['bert-large-1x3', 'bert-large-1x32', 'bert-large-1x64']:
   onnx_model = onnx.load(f"{args.model}_{args.n_channel}.onnx")
+  # if args.model == 'bert-large-1x3':
+  #   x = {'input_ids': torch.LongTensor([[101, 3231, 102]]).cuda(), 'token_type_ids': torch.LongTensor([[0, 0, 0]]).cuda(), 'attention_mask': torch.LongTensor([[1, 1, 1]]).cuda()}
+  # elif args.model == 'bert-large-1x32':
+  #   x = {'input_ids': torch.LongTensor([[101, 6748, 15756, 6125, 2024, 2062, 3697, 2000, 3345, 1012, 2057, 2556, 1037, 21961, 4083, 7705, 2000, 7496, 1996, 2731, 1997, 6125, 2008, 2024, 12381, 6748, 2084, 2216, 2109, 3130, 1012, 102]]).cuda(), 'token_type_ids': torch.LongTensor([[0]*32]).cuda(), 'attention_mask': torch.LongTensor([[1]*32]).cuda()}
+  # elif args.model == 'bert-large-1x64':
+  #   x = {'input_ids': torch.LongTensor([101, 6748, 15756, 6125, 2024, 2062, 3697, 2000, 3345, 1012, 2057, 2556, 1037, 21961, 4083, 7705, 2000, 7496, 1996, 2731, 1997, 6125, 2008, 2024, 12381, 6748, 2084, 2216, 2109, 3130, 1012, 2057, 12045, 5290, 9869, 1996, 9014, 2004, 4083, 21961, 4972, 2007, 4431, 2000, 1996, 6741, 20407, 1010, 2612, 1997, 4083, 4895, 2890, 25523, 2094, 4972, 1012, 2057, 3073, 7721, 17537, 3350, 4760, 102]).cuda(), 'token_type_ids': torch.LongTensor([[0]*64]).cuda(), 'attention_mask': torch.LongTensor([[1]*64]).cuda()}
 else:
   torch_out = model(x)
   # Export the model

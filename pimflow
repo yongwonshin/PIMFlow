@@ -69,7 +69,9 @@ def make_model(network):
   return onnx_model
 
 def profile(args):
-  if args.transform == "split":
+  if args.transform == "split" and args.network in ["bert-large-1x64", "bert-large-1x3"]:
+    os.system(f"cd layerwise && ./ALL_matmul.sh {args.network} {args.accel_sim_gpu} {args.accel_sim_kernel_launch_latency} {args.accel_sim_n_channel}")
+  elif args.transform == "split":
     os.system(f"cd layerwise && ./profile.sh {args.network} {args.accel_sim_gpu} {args.accel_sim_kernel_launch_latency} {args.accel_sim_n_channel}")
   elif args.transform == "pipeline":
     os.system(f"cd pipeline && ./profile.sh {args.network} {args.accel_sim_gpu} {args.accel_sim_kernel_launch_latency} {args.accel_sim_n_channel}")
@@ -409,7 +411,9 @@ def set_envs(args):
 if __name__ == '__main__':
   args = parse_arguments()
   set_envs(args)
-  make_model(args.network)
+  if args.network not in ["bert-large-1x64", "bert-large-1x3"]:
+    make_model(args.network)
+
   if args.mode == "profile":
     profile(args)
   elif args.mode == "solve":
