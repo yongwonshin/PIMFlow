@@ -1460,11 +1460,20 @@ class OffloadFC(TransformerBase):
         strides=find_attribute_by_name(node, 'strides').ints,
       )
     elif node.op_type == "Gemm":
+      trans = {}
+      transA = find_attribute_by_name(node, 'transA')
+      if transA is not None:
+        trans["transA"] = transA.i
+      transB = find_attribute_by_name(node, 'transB')
+      if transB is not None:
+        trans["transB"] = transB.i
+
       new_node = onnx.helper.make_node(
         'Gemm',
         name=new_name,
         inputs=node.input,
         outputs=[new_output],
+        **trans,
       )
     elif node.op_type == "MatMul":
       new_node = onnx.helper.make_node(
