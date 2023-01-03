@@ -212,7 +212,7 @@ def pim(configs):
       pim_cycles[c[0]]=int(cyc) * scale
       wr.writerow([c[0],c[1],c[2],c[3],c[4],0,pim_cycles.get(c[0],0)])
   pim_cycles_noopt = {}
-  with open(f'{args.model}_matmul0_{args.n_channel}_{args.n_gwrite}.csv','w', newline='') as f:
+  with open(f'{args.model}_matmul0_{args.n_channel}_{args.n_gwrite}_noopt.csv','w', newline='') as f:
     wr = csv.writer(f)
     wr.writerow(['kernel_name','row','col','bias','activation','GPU cycles','PIM cycles'])
     for c in configs:

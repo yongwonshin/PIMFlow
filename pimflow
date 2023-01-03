@@ -473,6 +473,6 @@ if __name__ == '__main__':
       policy_cycle = stat(args)
       print(f"GPU CYCLE: {gpu_cycle}")
       print(f"{args.policy} CYCLE: {policy_cycle}")
-      print(f"{args.policy} SPEEDUP: {round(gpu_cycle / policy_cycle, 2)}")
+      print(f"{args.policy} SPEEDUP: {round(gpu_cycle / policy_cycle, 3)}")
   else:
     raise Exception("Must NOT reach here!")
