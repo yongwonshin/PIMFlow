@@ -31,7 +31,7 @@ MODEL_LIST = [
   # convnext
   'convnext-tiny', 'convnext-small', 'convnext-base', 'convnext-large',
   # bert
-  'bert-large-1x64', 'bert-large-1x3',
+  'bert-large-1x64', 'bert-large-1x32', 'bert-large-1x3',
   # test
   'toy', 'memopt',
 ]
