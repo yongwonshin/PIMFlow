@@ -164,6 +164,12 @@ def statistics(configs):
     for c in configs:
       wr.writerow([c[0],c[1],c[2],c[3],c[4],gpu_cycles.get(c[0],0),pim_cycles.get(c[0],0)])
 
+  with open(f'{args.model}_matmul{args.split_ratio}_{args.n_channel}_{args.n_gwrite}_noopt.csv','w', newline='') as f:
+    wr = csv.writer(f)
+    wr.writerow(['kernel_name','row','col','bias','activation','GPU cycles','PIM cycles'])
+    for c in configs:
+      wr.writerow([c[0],c[1],c[2],c[3],c[4],gpu_cycles.get(c[0],0),pim_cycles_noopt.get(c[0],0)])
+
   if args.split_ratio == 100:
     gpu_cycles = {}
     for c in configs:
