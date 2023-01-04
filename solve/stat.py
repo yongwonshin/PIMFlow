@@ -221,7 +221,7 @@ removes = []
 for p in pipelines:
   i, l = p
   b = [dp_s[i+j][1] for j in range(l)]
-  if abs(1 - dp_s[i][l] / sum(b)) < 0.05:
+  if abs(1 - dp_s[i][l] / sum(b)) < 0.10:
     removes.append(p)
 for r in removes:
   pipelines.remove(r)
@@ -238,11 +238,13 @@ for r in removes:
 for p in pipelines:
   i, l = p
   b = [dp_s[i+j][1] for j in range(l)]
+  #print(f"GOOD PIPELINE!: {p} (pipeline: {pipeline_cycles[i][l]}) (original: {b}) ({dp_s[i][l] - sum(b)})")
 
 
 for p in worst_pipelines:
   i, l = p
   b = [dp_ws[i+j][1] for j in range(l)]
+  #print(f"BAD PIPELINE!: {p} (pipeline: {pipeline_cycles[i][l]}) (original: {b}) ({dp_s[i][l] - sum(b)})")
 
 
 for p in pipelines:
