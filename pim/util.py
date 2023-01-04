@@ -371,7 +371,7 @@ def get_torch_model(name):
   elif name == "mobilenet-v2":
     model = models.mobilenet_v2(pretrained=True)
   elif name == "mobilenet-v2-1.4":
-    model = models.mobilenet_v2(pretrained=True, width_mult=1.4)
+    model = models.mobilenet_v2(pretrained=False, width_mult=1.4)
   elif name == "mobilenet-v3-small":
     model = models.mobilenet_v3_small(pretrained=True)
   elif name == "mobilenet-v3-large":
