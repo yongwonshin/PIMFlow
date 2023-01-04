@@ -17,6 +17,7 @@ parser.add_argument("--pipeline", choices=["none", "1", "2", "3", "all"], requir
 parser.add_argument("--n_channel", type=int, default=16)
 parser.add_argument("--n_gwrite", type=int, default=4)
 parser.add_argument("--ramulator_disable_gwrite_latency_hiding", action="store_true")
+parser.add_argument("--stage", type=int, default=2)
 args = parser.parse_args()
 
 postfix = ""
@@ -100,21 +101,68 @@ while True:
   rows = list(pipeline1.values)
   row = list(rows[idx])
   if "pim" in row[0]:
-    cycle += float(rows[idx][-1])
-    cycle += max(float(rows[idx+1][-1]), float(rows[idx+1][-2]))
-    cycle += float(rows[idx+2][-2])
-    dp_b[idx_v+1][2] = cycle
-    dp_s[idx_v+1][2] = cycle
-    dp_ws[idx_v+1][2] = cycle
-    pipeline_cycles[idx_v+1][2] = ([float(rows[idx][-1]), max(float(rows[idx+1][-1]), float(rows[idx+1][-2])), float(rows[idx+2][-2])], 1)
-    trace_name[idx_v+1][2] = str(rows[idx+2][0])
-    pipeline_type[idx_v+1][2] = 1
-    valids.add((idx_v+1, 2))
-    idx += 3
-    idx_v += 2
-  else:
-    idx += 1
-    idx_v += 1
+    if args.stage == 2:
+      cycle += float(rows[idx][-1])
+      cycle += max(float(rows[idx+1][-1]), float(rows[idx+1][-2]))
+      cycle += float(rows[idx+2][-2])
+      dp_b[idx_v+1][2] = cycle
+      dp_s[idx_v+1][2] = cycle
+      dp_ws[idx_v+1][2] = cycle
+      pipeline_cycles[idx_v+1][2] = ([float(rows[idx][-1]), max(float(rows[idx+1][-1]), float(rows[idx+1][-2])), float(rows[idx+2][-2])], 1)
+      trace_name[idx_v+1][2] = str(rows[idx+2][0])
+      pipeline_type[idx_v+1][2] = 1
+      valids.add((idx_v+1, 2))
+      idx += 3
+      idx_v += 2
+      continue
+    elif args.stage == 3:
+      # TODO
+      cycle += float(rows[idx][-1])
+      cycle += max(float(rows[idx+2][-2]), float(rows[idx+1][-1]))
+      cycle += max(float(rows[idx+3][-2]), float(rows[idx+2][-1]))
+      cycle += float(rows[idx+4][-2])
+      dp_b[idx_v+1][2] = cycle
+      dp_s[idx_v+1][2] = cycle
+      dp_ws[idx_v+1][2] = cycle
+      pipeline_cycles[idx_v+1][2] = (cycle, 1)
+      valids.add((idx_v+1, 2))
+      idx += 5
+      idx_v += 2
+      continue
+    elif args.stage == 4:
+      # TODO
+      cycle += float(rows[idx][-1])
+      cycle += max(float(rows[idx+3][-2]), float(rows[idx+1][-1]))
+      cycle += max(float(rows[idx+4][-2]), float(rows[idx+2][-1]))
+      cycle += max(float(rows[idx+5][-2]), float(rows[idx+3][-1]))
+      cycle += float(rows[idx+6][-2])
+      dp_b[idx_v+1][2] = cycle
+      dp_s[idx_v+1][2] = cycle
+      dp_ws[idx_v+1][2] = cycle
+      pipeline_cycles[idx_v+1][2] = (cycle, 1)
+      valids.add((idx_v+1, 2))
+      idx += 7
+      idx_v += 2
+      continue
+    elif args.stage == 5:
+      # TODO
+      cycle += float(rows[idx][-1])
+      cycle += max(float(rows[idx+4][-2]), float(rows[idx+1][-1]))
+      cycle += max(float(rows[idx+5][-2]), float(rows[idx+2][-1]))
+      cycle += max(float(rows[idx+6][-2]), float(rows[idx+3][-1]))
+      cycle += max(float(rows[idx+7][-2]), float(rows[idx+4][-1]))
+      cycle += float(rows[idx+8][-2])
+      dp_b[idx_v+1][2] = cycle
+      dp_s[idx_v+1][2] = cycle
+      dp_ws[idx_v+1][2] = cycle
+      pipeline_cycles[idx_v+1][2] = (cycle, 1)
+      valids.add((idx_v+1, 2))
+      idx += 9
+      idx_v += 2
+      continue
+
+  idx += 1
+  idx_v += 1
 
   if idx_v >= N:
     break
@@ -129,21 +177,68 @@ while True:
   rows = list(pipeline2.values)
   row = list(rows[idx])
   if "added" in row[0]:
-    cycle += float(rows[idx][-2])
-    cycle += max(float(rows[idx+1][-1]), float(rows[idx+1][-2]))
-    cycle += float(rows[idx+2][-1])
-    dp_b[idx_v+1][2] = cycle
-    dp_s[idx_v+1][2] = cycle
-    dp_ws[idx_v+1][2] = cycle
-    pipeline_cycles[idx_v+1][2] = ([float(rows[idx][-2]), max(float(rows[idx+1][-1]), float(rows[idx+1][-2])), float(rows[idx+2][-1])], 2)
-    trace_name[idx_v+1][2] = str(rows[idx][0])
-    pipeline_type[idx_v+1][2] = 2
-    valids.add((idx_v+1, 2))
-    idx += 3
-    idx_v += 2
-  else:
-    idx += 1
-    idx_v += 1
+    if args.stage == 2:
+      cycle += float(rows[idx][-2])
+      cycle += max(float(rows[idx+1][-1]), float(rows[idx+1][-2]))
+      cycle += float(rows[idx+2][-1])
+      dp_b[idx_v+1][2] = cycle
+      dp_s[idx_v+1][2] = cycle
+      dp_ws[idx_v+1][2] = cycle
+      pipeline_cycles[idx_v+1][2] = ([float(rows[idx][-2]), max(float(rows[idx+1][-1]), float(rows[idx+1][-2])), float(rows[idx+2][-1])], 2)
+      trace_name[idx_v+1][2] = str(rows[idx][0])
+      pipeline_type[idx_v+1][2] = 2
+      valids.add((idx_v+1, 2))
+      idx += 3
+      idx_v += 2
+      continue
+    elif args.stage == 3:
+      # TODO
+      cycle += float(rows[idx][-2])
+      cycle += max(float(rows[idx+1][-2]), float(rows[idx+2][-1]))
+      cycle += max(float(rows[idx+2][-2]), float(rows[idx+3][-1]))
+      cycle += float(rows[idx+4][-1])
+      dp_b[idx_v+1][2] = cycle
+      dp_s[idx_v+1][2] = cycle
+      dp_ws[idx_v+1][2] = cycle
+      pipeline_cycles[idx_v+1][2] = (cycle, 2)
+      valids.add((idx_v+1, 2))
+      idx += 5
+      idx_v += 2
+      continue
+    elif args.stage == 4:
+      # TODO
+      cycle += float(rows[idx][-2])
+      cycle += max(float(rows[idx+1][-2]), float(rows[idx+3][-1]))
+      cycle += max(float(rows[idx+2][-2]), float(rows[idx+4][-1]))
+      cycle += max(float(rows[idx+3][-2]), float(rows[idx+5][-1]))
+      cycle += float(rows[idx+6][-1])
+      dp_b[idx_v+1][2] = cycle
+      dp_s[idx_v+1][2] = cycle
+      dp_ws[idx_v+1][2] = cycle
+      pipeline_cycles[idx_v+1][2] = (cycle, 2)
+      valids.add((idx_v+1, 2))
+      idx += 7
+      idx_v += 2
+      continue
+    elif args.stage == 5:
+      # TODO
+      cycle += float(rows[idx][-2])
+      cycle += max(float(rows[idx+1][-2]), float(rows[idx+4][-1]))
+      cycle += max(float(rows[idx+2][-2]), float(rows[idx+5][-1]))
+      cycle += max(float(rows[idx+3][-2]), float(rows[idx+6][-1]))
+      cycle += max(float(rows[idx+4][-2]), float(rows[idx+7][-1]))
+      cycle += float(rows[idx+8][-1])
+      dp_b[idx_v+1][2] = cycle
+      dp_s[idx_v+1][2] = cycle
+      dp_ws[idx_v+1][2] = cycle
+      pipeline_cycles[idx_v+1][2] = (cycle, 2)
+      valids.add((idx_v+1, 2))
+      idx += 9
+      idx_v += 2
+      continue
+
+  idx += 1
+  idx_v += 1
 
   if idx_v >= N:
     break
@@ -158,22 +253,98 @@ while True:
   rows = list(pipeline3.values)
   row = list(rows[idx])
   if "pim" in row[0]:
-    cycle += float(rows[idx][-1])
-    cycle += max(float(rows[idx+1][-1]), float(rows[idx+1][-2]))
-    cycle += max(float(rows[idx+2][-1]), float(rows[idx+2][-2]))
-    cycle += float(rows[idx+3][-1])
-    dp_b[idx_v+1][3] = cycle
-    dp_s[idx_v+1][3] = cycle
-    dp_ws[idx_v+1][3] = cycle
-    pipeline_cycles[idx_v+1][3] = ([float(rows[idx][-1]), max(float(rows[idx+1][-1]), float(rows[idx+1][-2])), max(float(rows[idx+2][-1]), float(rows[idx+2][-2])), float(rows[idx+3][-1])], 3)
-    trace_name[idx_v+1][3] = str(rows[idx+2][0])
-    pipeline_type[idx_v+1][3] = 3
-    valids.add((idx_v+1, 3))
-    idx += 4
-    idx_v += 3
-  else:
-    idx += 1
-    idx_v += 1
+    if args.stage == 2:
+      cycle += float(rows[idx][-1])
+      cycle += max(float(rows[idx+1][-1]), float(rows[idx+1][-2]))
+      cycle += max(float(rows[idx+2][-1]), float(rows[idx+2][-2]))
+      cycle += float(rows[idx+3][-1])
+      dp_b[idx_v+1][3] = cycle
+      dp_s[idx_v+1][3] = cycle
+      dp_ws[idx_v+1][3] = cycle
+      pipeline_cycles[idx_v+1][3] = ([float(rows[idx][-1]), max(float(rows[idx+1][-1]), float(rows[idx+1][-2])), max(float(rows[idx+2][-1]), float(rows[idx+2][-2])), float(rows[idx+3][-1])], 3)
+      trace_name[idx_v+1][3] = str(rows[idx+2][0])
+      pipeline_type[idx_v+1][3] = 3
+      valids.add((idx_v+1, 3))
+      idx += 4
+      idx_v += 3
+      continue
+    elif args.stage == 3:
+      # TODO
+      if float(rows[idx][-1]) < float(rows[idx+6][-1]):
+        cycle += float(rows[idx][-1])
+        cycle += float(rows[idx+1][-1])
+        cycle += max(float(rows[idx+2][-2]), float(rows[idx+2][-1]))
+        cycle += max(float(rows[idx+3][-2]), float(rows[idx+4][-1]))
+        cycle += max(float(rows[idx+4][-2]), float(rows[idx+5][-1]))
+        cycle += float(rows[idx+6][-1])
+      else:
+        cycle += float(rows[idx][-1])
+        cycle += max(float(rows[idx+2][-2]), float(rows[idx+1][-1]))
+        cycle += max(float(rows[idx+3][-2]), float(rows[idx+2][-1]))
+        cycle += max(float(rows[idx+4][-2]), float(rows[idx+4][-1]))
+        cycle += float(rows[idx+5][-1])
+        cycle += float(rows[idx+6][-1])
+      dp_b[idx_v+1][3] = cycle
+      dp_s[idx_v+1][3] = cycle
+      dp_ws[idx_v+1][3] = cycle
+      pipeline_cycles[idx_v+1][3] = (cycle, 3)
+      valids.add((idx_v+1, 3))
+      idx += 7
+      idx_v += 3
+      continue
+    elif args.stage == 4:
+      # TODO
+      cycle += float(rows[idx][-1])
+      cycle += float(rows[idx+1][-1])
+      cycle += max(float(rows[idx+3][-2]), float(rows[idx+2][-1]))
+      cycle += max(float(rows[idx+4][-2]), float(rows[idx+3][-1]))
+      cycle += max(float(rows[idx+5][-2]), float(rows[idx+6][-1]))
+      cycle += max(float(rows[idx+6][-2]), float(rows[idx+7][-1]))
+      cycle += float(rows[idx+8][-1])
+      cycle += float(rows[idx+9][-1])
+      dp_b[idx_v+1][3] = cycle
+      dp_s[idx_v+1][3] = cycle
+      dp_ws[idx_v+1][3] = cycle
+      pipeline_cycles[idx_v+1][3] = (cycle, 3)
+      valids.add((idx_v+1, 3))
+      idx += 10
+      idx_v += 3
+      continue
+    elif args.stage == 5:
+      # TODO
+      if float(rows[idx][-1]) < float(rows[idx+12][-1]):
+        cycle += float(rows[idx][-1])
+        cycle += float(rows[idx+1][-1])
+        cycle += float(rows[idx+2][-1])
+        cycle += max(float(rows[idx+4][-2]), float(rows[idx+3][-1]))
+        cycle += max(float(rows[idx+5][-2]), float(rows[idx+4][-1]))
+        cycle += max(float(rows[idx+6][-2]), float(rows[idx+8][-1]))
+        cycle += max(float(rows[idx+7][-2]), float(rows[idx+9][-1]))
+        cycle += max(float(rows[idx+8][-2]), float(rows[idx+10][-1]))
+        cycle += float(rows[idx+11][-1])
+        cycle += float(rows[idx+12][-1])
+      else:
+        cycle += float(rows[idx][-1])
+        cycle += float(rows[idx+1][-1])
+        cycle += max(float(rows[idx+4][-2]), float(rows[idx+2][-1]))
+        cycle += max(float(rows[idx+5][-2]), float(rows[idx+3][-1]))
+        cycle += max(float(rows[idx+6][-2]), float(rows[idx+4][-1]))
+        cycle += max(float(rows[idx+7][-2]), float(rows[idx+8][-1]))
+        cycle += max(float(rows[idx+8][-2]), float(rows[idx+9][-1]))
+        cycle += float(rows[idx+10][-1])
+        cycle += float(rows[idx+11][-1])
+        cycle += float(rows[idx+12][-1])
+      dp_b[idx_v+1][3] = cycle
+      dp_s[idx_v+1][3] = cycle
+      dp_ws[idx_v+1][3] = cycle
+      pipeline_cycles[idx_v+1][3] = (cycle, 3)
+      valids.add((idx_v+1, 3))
+      idx += 13
+      idx_v += 3
+      continue
+
+  idx += 1
+  idx_v += 1
 
   if idx_v >= N:
     break

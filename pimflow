@@ -81,7 +81,7 @@ def solve(args):
   os.system(f"cd solve && ./solve.sh {args.network} {args.accel_sim_n_channel}")
 
 def stat_conv_only(args):
-  os.system(f"cd solve && ./stat.sh {args.network} {args.accel_sim_n_channel}")
+  os.system(f"cd solve && ./stat.sh {args.network} {args.accel_sim_n_channel} {args.pipeline_stage}")
 
 def stat_layerwise(args):
   newtonp = f"layerwise/newton_performance_{args.network}_{args.accel_sim_n_channel}_1_noopt.csv"
