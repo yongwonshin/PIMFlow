@@ -961,7 +961,7 @@ class Pipeline(TransformerBase):
     return model
 
 # TODO: fix pipeline stage granularity search
-class PipelineMultipleStage:
+class PipelineMultipleStage(TransformerBase):
   def __init__(self, onnx_datatype=onnx_datatype):
     self.prev_convs = []
     self.extra_slice = 0

@@ -31,6 +31,7 @@ def parse_arguments():
   parser.add_argument("--accel_sim_kernel_launch_latency", type=int, default=5010)
   parser.add_argument("--accel_sim_n_channel", type=int, default=16)
   parser.add_argument("--policy", choices=["None", "Newton+", "Newton++", "MDDP", "Pipeline", "PIMFlow"], default="PIMFlow")
+  parser.add_argument("--pipeline_stage", type=int, default=2)
   args = parser.parse_args()
 
   if args.mode == "profile" and (args.transform is None):
@@ -74,7 +75,7 @@ def profile(args):
   elif args.transform == "split":
     os.system(f"cd layerwise && ./profile.sh {args.network} {args.accel_sim_gpu} {args.accel_sim_kernel_launch_latency} {args.accel_sim_n_channel}")
   elif args.transform == "pipeline":
-    os.system(f"cd pipeline && ./profile.sh {args.network} {args.accel_sim_gpu} {args.accel_sim_kernel_launch_latency} {args.accel_sim_n_channel}")
+    os.system(f"cd pipeline && ./profile.sh {args.network} {args.accel_sim_gpu} {args.accel_sim_kernel_launch_latency} {args.accel_sim_n_channel} {args.pipeline_stage}")
 
 def solve(args):
   os.system(f"cd solve && ./solve.sh {args.network} {args.accel_sim_n_channel}")

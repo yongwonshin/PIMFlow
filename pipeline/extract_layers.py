@@ -5,9 +5,10 @@ import onnx
 from pim.util import Net, find_nodes_by_arg_name
 from google.protobuf.json_format import MessageToDict
 from pim.util import Net, activation_type
-from pim.transform import Pipeline
+from pim.transform import Pipeline, PipelineMultipleStage
 import copy
 from pim.util import MODEL_LIST, get_random_input
+from torch.cuda import device_count
 import os
 
 import argparse
@@ -22,9 +23,10 @@ class Range(object):
 parser = argparse.ArgumentParser()
 parser.add_argument("--model", help="model", choices=MODEL_LIST, required=True)
 parser.add_argument("--n_channel", type=int, default=16)
+parser.add_argument("--stage", type=int, default=2)
 args = parser.parse_args()
 
-os.environ["CUDA_VISIBLE_DEVICES"]=f"{args.n_channel // 4 % 8}"
+os.environ["CUDA_VISIBLE_DEVICES"]=f"{args.n_channel // 4 % device_count()}"
 
 model = None
 if args.model == "efficientnet-v1-b0":
@@ -355,12 +357,18 @@ onnx_model3 = copy.deepcopy(onnx_model)
 
 if len(layers) > 0:
   for layer in layers:
-    onnx_model = Pipeline().transform(onnx_model, layer['nodes'], is_gpu_first=layer['is_gpu_first'])
+    if args.stage == 2:
+      onnx_model = Pipeline().transform(onnx_model, layer['nodes'], is_gpu_first=layer['is_gpu_first'])
+    else:
+      onnx_model = PipelineMultipleStage().transform(onnx_model, layer['nodes'], is_gpu_first=layer['is_gpu_first'], stage=args.stage)
   onnx.save(onnx_model, f"{args.model}_pipelined1_{args.n_channel}.onnx")
 
 if len(layers2) > 0:
   for layer in layers2:
-    onnx_model2 = Pipeline().transform(onnx_model2, layer['nodes'], is_gpu_first=layer['is_gpu_first'])
+    if args.stage == 2:
+      onnx_model2 = Pipeline().transform(onnx_model2, layer['nodes'], is_gpu_first=layer['is_gpu_first'])
+    else:
+      onnx_model2 = PipelineMultipleStage().transform(onnx_model2, layer['nodes'], is_gpu_first=layer['is_gpu_first'], stage=args.stage)
   onnx.save(onnx_model2, f"{args.model}_pipelined2_{args.n_channel}.onnx")
 
 
@@ -495,7 +503,10 @@ for k, v in layer1_dict.items():
 
 if len(layers3) > 0:
   for layer in layers3:
-    onnx_model3 = Pipeline().transform(onnx_model3, layer['nodes'], is_gpu_first=layer['is_gpu_first'])
+    if args.stage == 2:
+      onnx_model3 = Pipeline().transform(onnx_model3, layer['nodes'], is_gpu_first=layer['is_gpu_first'])
+    else:
+      onnx_model3 = PipelineMultipleStage().transform(onnx_model3, layer['nodes'], is_gpu_first=layer['is_gpu_first'], stage=args.stage)
   onnx.save(onnx_model3, f"{args.model}_pipelined3_{args.n_channel}.onnx")
 
 if len(layers3) > 0:

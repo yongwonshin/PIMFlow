@@ -8,6 +8,7 @@ import csv
 import re
 import pandas as pd
 from pim.util import MODEL_LIST
+from torch.cuda import device_count
 parser = argparse.ArgumentParser()
 group = parser.add_mutually_exclusive_group(required=True)
 group.add_argument("--trace", action="store_true", help="create trace")
@@ -30,7 +31,7 @@ if args.trace and (args.gpgpusim_config is None):
 if args.simulate and (args.gpgpusim_config is None):
   parser.error("--simulate requires --gpgpusim_config")
 
-NGPU=[0, 1, 2, 3, 4, 5, 6, 7]
+NGPU=list(range(device_count()))
 NCPU=multiprocessing.cpu_count()
 
 CONFIG_ALL=[]
