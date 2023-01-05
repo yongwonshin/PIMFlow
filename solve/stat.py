@@ -102,9 +102,12 @@ while True:
   row = list(rows[idx])
   if "pim" in row[0]:
     if args.stage == 2:
-      cycle += float(rows[idx][-1])
-      cycle += max(float(rows[idx+1][-1]), float(rows[idx+1][-2]))
-      cycle += float(rows[idx+2][-2])
+      # cycle += float(rows[idx][-1])
+      # cycle += max(float(rows[idx+1][-1]), float(rows[idx+1][-2]))
+      # cycle += float(rows[idx+2][-2])
+      cycle += float(rows[idx+1][-1])
+      cycle += max(float(rows[idx+2][-2]), float(rows[idx][-1]))
+      cycle += float(rows[idx+1][-2])
       dp_b[idx_v+1][2] = cycle
       dp_s[idx_v+1][2] = cycle
       dp_ws[idx_v+1][2] = cycle
@@ -178,9 +181,12 @@ while True:
   row = list(rows[idx])
   if "added" in row[0]:
     if args.stage == 2:
-      cycle += float(rows[idx][-2])
-      cycle += max(float(rows[idx+1][-1]), float(rows[idx+1][-2]))
-      cycle += float(rows[idx+2][-1])
+      # cycle += float(rows[idx][-2])
+      # cycle += max(float(rows[idx+1][-1]), float(rows[idx+1][-2]))
+      # cycle += float(rows[idx+2][-1])
+      cycle += float(rows[idx+1][-2])
+      cycle += max(float(rows[idx][-2]), float(rows[idx+2][-1]))
+      cycle += float(rows[idx+1][-1])
       dp_b[idx_v+1][2] = cycle
       dp_s[idx_v+1][2] = cycle
       dp_ws[idx_v+1][2] = cycle
@@ -254,10 +260,14 @@ while True:
   row = list(rows[idx])
   if "pim" in row[0]:
     if args.stage == 2:
-      cycle += float(rows[idx][-1])
-      cycle += max(float(rows[idx+1][-1]), float(rows[idx+1][-2]))
-      cycle += max(float(rows[idx+2][-1]), float(rows[idx+2][-2]))
-      cycle += float(rows[idx+3][-1])
+      # cycle += float(rows[idx][-1])
+      # cycle += max(float(rows[idx+1][-1]), float(rows[idx+1][-2]))
+      # cycle += max(float(rows[idx+2][-1]), float(rows[idx+2][-2]))
+      # cycle += float(rows[idx+3][-1])
+      cycle += float(rows[idx+1][-1])
+      cycle += max(float(rows[idx+2][-2]), float(rows[idx][-1]))
+      cycle += max(float(rows[idx+1][-2]), float(rows[idx+3][-1]))
+      cycle += float(rows[idx+2][-1])
       dp_b[idx_v+1][3] = cycle
       dp_s[idx_v+1][3] = cycle
       dp_ws[idx_v+1][3] = cycle
