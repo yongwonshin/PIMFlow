@@ -111,7 +111,10 @@ while True:
       dp_b[idx_v+1][2] = cycle
       dp_s[idx_v+1][2] = cycle
       dp_ws[idx_v+1][2] = cycle
-      pipeline_cycles[idx_v+1][2] = ([float(rows[idx][-1]), max(float(rows[idx+1][-1]), float(rows[idx+1][-2])), float(rows[idx+2][-2])], 1)
+      pipeline_cycles[idx_v+1][2] = ([
+        float(rows[idx+1][-1]),
+        max(float(rows[idx+2][-2]), float(rows[idx][-1])),
+        float(rows[idx+1][-2])], 1)
       trace_name[idx_v+1][2] = str(rows[idx+2][0])
       pipeline_type[idx_v+1][2] = 1
       valids.add((idx_v+1, 2))
@@ -127,7 +130,6 @@ while True:
       dp_b[idx_v+1][2] = cycle
       dp_s[idx_v+1][2] = cycle
       dp_ws[idx_v+1][2] = cycle
-      pipeline_cycles[idx_v+1][2] = (cycle, 1)
       valids.add((idx_v+1, 2))
       idx += 5
       idx_v += 2
@@ -142,7 +144,6 @@ while True:
       dp_b[idx_v+1][2] = cycle
       dp_s[idx_v+1][2] = cycle
       dp_ws[idx_v+1][2] = cycle
-      pipeline_cycles[idx_v+1][2] = (cycle, 1)
       valids.add((idx_v+1, 2))
       idx += 7
       idx_v += 2
@@ -158,7 +159,6 @@ while True:
       dp_b[idx_v+1][2] = cycle
       dp_s[idx_v+1][2] = cycle
       dp_ws[idx_v+1][2] = cycle
-      pipeline_cycles[idx_v+1][2] = (cycle, 1)
       valids.add((idx_v+1, 2))
       idx += 9
       idx_v += 2
@@ -190,7 +190,10 @@ while True:
       dp_b[idx_v+1][2] = cycle
       dp_s[idx_v+1][2] = cycle
       dp_ws[idx_v+1][2] = cycle
-      pipeline_cycles[idx_v+1][2] = ([float(rows[idx][-2]), max(float(rows[idx+1][-1]), float(rows[idx+1][-2])), float(rows[idx+2][-1])], 2)
+      pipeline_cycles[idx_v+1][2] = ([
+        float(rows[idx+1][-2]),
+        max(float(rows[idx][-2]), float(rows[idx+2][-1])),
+        float(rows[idx+1][-1])], 2)
       trace_name[idx_v+1][2] = str(rows[idx][0])
       pipeline_type[idx_v+1][2] = 2
       valids.add((idx_v+1, 2))
@@ -206,7 +209,6 @@ while True:
       dp_b[idx_v+1][2] = cycle
       dp_s[idx_v+1][2] = cycle
       dp_ws[idx_v+1][2] = cycle
-      pipeline_cycles[idx_v+1][2] = (cycle, 2)
       valids.add((idx_v+1, 2))
       idx += 5
       idx_v += 2
@@ -221,7 +223,6 @@ while True:
       dp_b[idx_v+1][2] = cycle
       dp_s[idx_v+1][2] = cycle
       dp_ws[idx_v+1][2] = cycle
-      pipeline_cycles[idx_v+1][2] = (cycle, 2)
       valids.add((idx_v+1, 2))
       idx += 7
       idx_v += 2
@@ -237,7 +238,6 @@ while True:
       dp_b[idx_v+1][2] = cycle
       dp_s[idx_v+1][2] = cycle
       dp_ws[idx_v+1][2] = cycle
-      pipeline_cycles[idx_v+1][2] = (cycle, 2)
       valids.add((idx_v+1, 2))
       idx += 9
       idx_v += 2
@@ -271,7 +271,11 @@ while True:
       dp_b[idx_v+1][3] = cycle
       dp_s[idx_v+1][3] = cycle
       dp_ws[idx_v+1][3] = cycle
-      pipeline_cycles[idx_v+1][3] = ([float(rows[idx][-1]), max(float(rows[idx+1][-1]), float(rows[idx+1][-2])), max(float(rows[idx+2][-1]), float(rows[idx+2][-2])), float(rows[idx+3][-1])], 3)
+      pipeline_cycles[idx_v+1][3] = ([
+        float(rows[idx+1][-1]),
+        max(float(rows[idx+2][-2]), float(rows[idx][-1])),
+        max(float(rows[idx+1][-2]), float(rows[idx+3][-1])),
+        float(rows[idx+2][-1])], 3)
       trace_name[idx_v+1][3] = str(rows[idx+2][0])
       pipeline_type[idx_v+1][3] = 3
       valids.add((idx_v+1, 3))
@@ -297,7 +301,6 @@ while True:
       dp_b[idx_v+1][3] = cycle
       dp_s[idx_v+1][3] = cycle
       dp_ws[idx_v+1][3] = cycle
-      pipeline_cycles[idx_v+1][3] = (cycle, 3)
       valids.add((idx_v+1, 3))
       idx += 7
       idx_v += 3
@@ -315,7 +318,6 @@ while True:
       dp_b[idx_v+1][3] = cycle
       dp_s[idx_v+1][3] = cycle
       dp_ws[idx_v+1][3] = cycle
-      pipeline_cycles[idx_v+1][3] = (cycle, 3)
       valids.add((idx_v+1, 3))
       idx += 10
       idx_v += 3
@@ -347,7 +349,6 @@ while True:
       dp_b[idx_v+1][3] = cycle
       dp_s[idx_v+1][3] = cycle
       dp_ws[idx_v+1][3] = cycle
-      pipeline_cycles[idx_v+1][3] = (cycle, 3)
       valids.add((idx_v+1, 3))
       idx += 13
       idx_v += 3
@@ -419,13 +420,13 @@ for r in removes:
 for p in pipelines:
   i, l = p
   b = [dp_s[i+j][1] for j in range(l)]
-  #print(f"GOOD PIPELINE!: {p} (pipeline: {pipeline_cycles[i][l]}) (original: {b}) ({dp_s[i][l] - sum(b)})")
+  # print(f"GOOD PIPELINE!: {p} (pipeline: {pipeline_cycles[i][l]}) (original: {b}) ({dp_s[i][l] - sum(b)})")
 
 
 for p in worst_pipelines:
   i, l = p
   b = [dp_ws[i+j][1] for j in range(l)]
-  #print(f"BAD PIPELINE!: {p} (pipeline: {pipeline_cycles[i][l]}) (original: {b}) ({dp_s[i][l] - sum(b)})")
+  # print(f"BAD PIPELINE!: {p} (pipeline: {pipeline_cycles[i][l]}) (original: {b}) ({dp_s[i][l] - sum(b)})")
 
 
 for p in pipelines:
