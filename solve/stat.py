@@ -123,10 +123,14 @@ while True:
       continue
     elif args.stage == 3:
       # TODO
-      cycle += float(rows[idx][-1])
-      cycle += max(float(rows[idx+2][-2]), float(rows[idx+1][-1]))
-      cycle += max(float(rows[idx+3][-2]), float(rows[idx+2][-1]))
-      cycle += float(rows[idx+4][-2])
+      # cycle += float(rows[idx][-1])
+      # cycle += max(float(rows[idx+2][-2]), float(rows[idx+1][-1]))
+      # cycle += max(float(rows[idx+3][-2]), float(rows[idx+2][-1]))
+      # cycle += float(rows[idx+4][-2])
+      cycle += float(rows[idx+2][-1])
+      cycle += max(float(rows[idx+4][-2]), float(rows[idx+1][-1]))
+      cycle += max(float(rows[idx+3][-2]), float(rows[idx][-1]))
+      cycle += float(rows[idx+2][-2])
       dp_b[idx_v+1][2] = cycle
       dp_s[idx_v+1][2] = cycle
       dp_ws[idx_v+1][2] = cycle
@@ -136,11 +140,16 @@ while True:
       continue
     elif args.stage == 4:
       # TODO
-      cycle += float(rows[idx][-1])
-      cycle += max(float(rows[idx+3][-2]), float(rows[idx+1][-1]))
-      cycle += max(float(rows[idx+4][-2]), float(rows[idx+2][-1]))
-      cycle += max(float(rows[idx+5][-2]), float(rows[idx+3][-1]))
-      cycle += float(rows[idx+6][-2])
+      # cycle += float(rows[idx][-1])
+      # cycle += max(float(rows[idx+3][-2]), float(rows[idx+1][-1]))
+      # cycle += max(float(rows[idx+4][-2]), float(rows[idx+2][-1]))
+      # cycle += max(float(rows[idx+5][-2]), float(rows[idx+3][-1]))
+      # cycle += float(rows[idx+6][-2])
+      cycle += float(rows[idx+3][-1])
+      cycle += max(float(rows[idx+6][-2]), float(rows[idx+2][-1]))
+      cycle += max(float(rows[idx+5][-2]), float(rows[idx+1][-1]))
+      cycle += max(float(rows[idx+4][-2]), float(rows[idx][-1]))
+      cycle += float(rows[idx+3][-2])
       dp_b[idx_v+1][2] = cycle
       dp_s[idx_v+1][2] = cycle
       dp_ws[idx_v+1][2] = cycle
@@ -150,12 +159,18 @@ while True:
       continue
     elif args.stage == 5:
       # TODO
-      cycle += float(rows[idx][-1])
-      cycle += max(float(rows[idx+4][-2]), float(rows[idx+1][-1]))
-      cycle += max(float(rows[idx+5][-2]), float(rows[idx+2][-1]))
-      cycle += max(float(rows[idx+6][-2]), float(rows[idx+3][-1]))
-      cycle += max(float(rows[idx+7][-2]), float(rows[idx+4][-1]))
-      cycle += float(rows[idx+8][-2])
+      # cycle += float(rows[idx][-1])
+      # cycle += max(float(rows[idx+4][-2]), float(rows[idx+1][-1]))
+      # cycle += max(float(rows[idx+5][-2]), float(rows[idx+2][-1]))
+      # cycle += max(float(rows[idx+6][-2]), float(rows[idx+3][-1]))
+      # cycle += max(float(rows[idx+7][-2]), float(rows[idx+4][-1]))
+      # cycle += float(rows[idx+8][-2])
+      cycle += float(rows[idx+4][-1])
+      cycle += max(float(rows[idx+8][-2]), float(rows[idx+3][-1]))
+      cycle += max(float(rows[idx+7][-2]), float(rows[idx+2][-1]))
+      cycle += max(float(rows[idx+6][-2]), float(rows[idx+1][-1]))
+      cycle += max(float(rows[idx+5][-2]), float(rows[idx][-1]))
+      cycle += float(rows[idx+4][-2])
       dp_b[idx_v+1][2] = cycle
       dp_s[idx_v+1][2] = cycle
       dp_ws[idx_v+1][2] = cycle
@@ -202,10 +217,14 @@ while True:
       continue
     elif args.stage == 3:
       # TODO
-      cycle += float(rows[idx][-2])
-      cycle += max(float(rows[idx+1][-2]), float(rows[idx+2][-1]))
-      cycle += max(float(rows[idx+2][-2]), float(rows[idx+3][-1]))
-      cycle += float(rows[idx+4][-1])
+      # cycle += float(rows[idx][-2])
+      # cycle += max(float(rows[idx+1][-2]), float(rows[idx+2][-1]))
+      # cycle += max(float(rows[idx+2][-2]), float(rows[idx+3][-1]))
+      # cycle += float(rows[idx+4][-1])
+      cycle += float(rows[idx+2][-2])
+      cycle += max(float(rows[idx+1][-2]), float(rows[idx+4][-1]))
+      cycle += max(float(rows[idx][-2]), float(rows[idx+3][-1]))
+      cycle += float(rows[idx+2][-1])
       dp_b[idx_v+1][2] = cycle
       dp_s[idx_v+1][2] = cycle
       dp_ws[idx_v+1][2] = cycle
@@ -215,11 +234,16 @@ while True:
       continue
     elif args.stage == 4:
       # TODO
-      cycle += float(rows[idx][-2])
-      cycle += max(float(rows[idx+1][-2]), float(rows[idx+3][-1]))
-      cycle += max(float(rows[idx+2][-2]), float(rows[idx+4][-1]))
-      cycle += max(float(rows[idx+3][-2]), float(rows[idx+5][-1]))
-      cycle += float(rows[idx+6][-1])
+      # cycle += float(rows[idx][-2])
+      # cycle += max(float(rows[idx+1][-2]), float(rows[idx+3][-1]))
+      # cycle += max(float(rows[idx+2][-2]), float(rows[idx+4][-1]))
+      # cycle += max(float(rows[idx+3][-2]), float(rows[idx+5][-1]))
+      # cycle += float(rows[idx+6][-1])
+      cycle += float(rows[idx+3][-2])
+      cycle += max(float(rows[idx+2][-2]), float(rows[idx+6][-1]))
+      cycle += max(float(rows[idx+1][-2]), float(rows[idx+5][-1]))
+      cycle += max(float(rows[idx][-2]), float(rows[idx+4][-1]))
+      cycle += float(rows[idx+3][-1])
       dp_b[idx_v+1][2] = cycle
       dp_s[idx_v+1][2] = cycle
       dp_ws[idx_v+1][2] = cycle
@@ -229,12 +253,18 @@ while True:
       continue
     elif args.stage == 5:
       # TODO
-      cycle += float(rows[idx][-2])
-      cycle += max(float(rows[idx+1][-2]), float(rows[idx+4][-1]))
-      cycle += max(float(rows[idx+2][-2]), float(rows[idx+5][-1]))
-      cycle += max(float(rows[idx+3][-2]), float(rows[idx+6][-1]))
-      cycle += max(float(rows[idx+4][-2]), float(rows[idx+7][-1]))
-      cycle += float(rows[idx+8][-1])
+      # cycle += float(rows[idx][-2])
+      # cycle += max(float(rows[idx+1][-2]), float(rows[idx+4][-1]))
+      # cycle += max(float(rows[idx+2][-2]), float(rows[idx+5][-1]))
+      # cycle += max(float(rows[idx+3][-2]), float(rows[idx+6][-1]))
+      # cycle += max(float(rows[idx+4][-2]), float(rows[idx+7][-1]))
+      # cycle += float(rows[idx+8][-1])
+      cycle += float(rows[idx+4][-2])
+      cycle += max(float(rows[idx+3][-2]), float(rows[idx+8][-1]))
+      cycle += max(float(rows[idx+2][-2]), float(rows[idx+7][-1]))
+      cycle += max(float(rows[idx+1][-2]), float(rows[idx+6][-1]))
+      cycle += max(float(rows[idx][-2]), float(rows[idx+5][-1]))
+      cycle += float(rows[idx+4][-1])
       dp_b[idx_v+1][2] = cycle
       dp_s[idx_v+1][2] = cycle
       dp_ws[idx_v+1][2] = cycle
@@ -285,19 +315,31 @@ while True:
     elif args.stage == 3:
       # TODO
       if float(rows[idx][-1]) < float(rows[idx+6][-1]):
-        cycle += float(rows[idx][-1])
+        # cycle += float(rows[idx][-1])
+        # cycle += float(rows[idx+1][-1])
+        # cycle += max(float(rows[idx+2][-2]), float(rows[idx+2][-1]))
+        # cycle += max(float(rows[idx+3][-2]), float(rows[idx+4][-1]))
+        # cycle += max(float(rows[idx+4][-2]), float(rows[idx+5][-1]))
+        # cycle += float(rows[idx+6][-1])
+        cycle += float(rows[idx+2][-1])
         cycle += float(rows[idx+1][-1])
-        cycle += max(float(rows[idx+2][-2]), float(rows[idx+2][-1]))
-        cycle += max(float(rows[idx+3][-2]), float(rows[idx+4][-1]))
-        cycle += max(float(rows[idx+4][-2]), float(rows[idx+5][-1]))
-        cycle += float(rows[idx+6][-1])
+        cycle += max(float(rows[idx+4][-2]), float(rows[idx][-1]))
+        cycle += max(float(rows[idx+3][-2]), float(rows[idx+6][-1]))
+        cycle += max(float(rows[idx+2][-2]), float(rows[idx+5][-1]))
+        cycle += float(rows[idx+4][-1])
       else:
-        cycle += float(rows[idx][-1])
-        cycle += max(float(rows[idx+2][-2]), float(rows[idx+1][-1]))
-        cycle += max(float(rows[idx+3][-2]), float(rows[idx+2][-1]))
-        cycle += max(float(rows[idx+4][-2]), float(rows[idx+4][-1]))
+        # cycle += float(rows[idx][-1])
+        # cycle += max(float(rows[idx+2][-2]), float(rows[idx+1][-1]))
+        # cycle += max(float(rows[idx+3][-2]), float(rows[idx+2][-1]))
+        # cycle += max(float(rows[idx+4][-2]), float(rows[idx+4][-1]))
+        # cycle += float(rows[idx+5][-1])
+        # cycle += float(rows[idx+6][-1])
+        cycle += float(rows[idx+2][-1])
+        cycle += max(float(rows[idx+4][-2]), float(rows[idx+1][-1]))
+        cycle += max(float(rows[idx+3][-2]), float(rows[idx][-1]))
+        cycle += max(float(rows[idx+2][-2]), float(rows[idx+6][-1]))
         cycle += float(rows[idx+5][-1])
-        cycle += float(rows[idx+6][-1])
+        cycle += float(rows[idx+4][-1])
       dp_b[idx_v+1][3] = cycle
       dp_s[idx_v+1][3] = cycle
       dp_ws[idx_v+1][3] = cycle
@@ -307,14 +349,22 @@ while True:
       continue
     elif args.stage == 4:
       # TODO
-      cycle += float(rows[idx][-1])
-      cycle += float(rows[idx+1][-1])
-      cycle += max(float(rows[idx+3][-2]), float(rows[idx+2][-1]))
-      cycle += max(float(rows[idx+4][-2]), float(rows[idx+3][-1]))
-      cycle += max(float(rows[idx+5][-2]), float(rows[idx+6][-1]))
-      cycle += max(float(rows[idx+6][-2]), float(rows[idx+7][-1]))
-      cycle += float(rows[idx+8][-1])
-      cycle += float(rows[idx+9][-1])
+      # cycle += float(rows[idx][-1])
+      # cycle += float(rows[idx+1][-1])
+      # cycle += max(float(rows[idx+3][-2]), float(rows[idx+2][-1]))
+      # cycle += max(float(rows[idx+4][-2]), float(rows[idx+3][-1]))
+      # cycle += max(float(rows[idx+5][-2]), float(rows[idx+6][-1]))
+      # cycle += max(float(rows[idx+6][-2]), float(rows[idx+7][-1]))
+      # cycle += float(rows[idx+8][-1])
+      # cycle += float(rows[idx+9][-1])
+      cycle += float(rows[idx+3][-1])
+      cycle += float(rows[idx+2][-1])
+      cycle += max(float(rows[idx+6][-2]), float(rows[idx+1][-1]))
+      cycle += max(float(rows[idx+5][-2]), float(rows[idx][-1]))
+      cycle += max(float(rows[idx+4][-2]), float(rows[idx+9][-1]))
+      cycle += max(float(rows[idx+3][-2]), float(rows[idx+8][-1]))
+      cycle += float(rows[idx+7][-1])
+      cycle += float(rows[idx+6][-1])
       dp_b[idx_v+1][3] = cycle
       dp_s[idx_v+1][3] = cycle
       dp_ws[idx_v+1][3] = cycle
@@ -325,27 +375,47 @@ while True:
     elif args.stage == 5:
       # TODO
       if float(rows[idx][-1]) < float(rows[idx+12][-1]):
-        cycle += float(rows[idx][-1])
-        cycle += float(rows[idx+1][-1])
+        # cycle += float(rows[idx][-1])
+        # cycle += float(rows[idx+1][-1])
+        # cycle += float(rows[idx+2][-1])
+        # cycle += max(float(rows[idx+4][-2]), float(rows[idx+3][-1]))
+        # cycle += max(float(rows[idx+5][-2]), float(rows[idx+4][-1]))
+        # cycle += max(float(rows[idx+6][-2]), float(rows[idx+8][-1]))
+        # cycle += max(float(rows[idx+7][-2]), float(rows[idx+9][-1]))
+        # cycle += max(float(rows[idx+8][-2]), float(rows[idx+10][-1]))
+        # cycle += float(rows[idx+11][-1])
+        # cycle += float(rows[idx+12][-1])
+        cycle += float(rows[idx+4][-1])
+        cycle += float(rows[idx+3][-1])
         cycle += float(rows[idx+2][-1])
-        cycle += max(float(rows[idx+4][-2]), float(rows[idx+3][-1]))
-        cycle += max(float(rows[idx+5][-2]), float(rows[idx+4][-1]))
-        cycle += max(float(rows[idx+6][-2]), float(rows[idx+8][-1]))
-        cycle += max(float(rows[idx+7][-2]), float(rows[idx+9][-1]))
-        cycle += max(float(rows[idx+8][-2]), float(rows[idx+10][-1]))
-        cycle += float(rows[idx+11][-1])
-        cycle += float(rows[idx+12][-1])
+        cycle += max(float(rows[idx+8][-2]), float(rows[idx+1][-1]))
+        cycle += max(float(rows[idx+7][-2]), float(rows[idx][-1]))
+        cycle += max(float(rows[idx+6][-2]), float(rows[idx+12][-1]))
+        cycle += max(float(rows[idx+5][-2]), float(rows[idx+11][-1]))
+        cycle += max(float(rows[idx+4][-2]), float(rows[idx+10][-1]))
+        cycle += float(rows[idx+9][-1])
+        cycle += float(rows[idx+8][-1])
       else:
-        cycle += float(rows[idx][-1])
-        cycle += float(rows[idx+1][-1])
-        cycle += max(float(rows[idx+4][-2]), float(rows[idx+2][-1]))
-        cycle += max(float(rows[idx+5][-2]), float(rows[idx+3][-1]))
-        cycle += max(float(rows[idx+6][-2]), float(rows[idx+4][-1]))
-        cycle += max(float(rows[idx+7][-2]), float(rows[idx+8][-1]))
-        cycle += max(float(rows[idx+8][-2]), float(rows[idx+9][-1]))
+        # cycle += float(rows[idx][-1])
+        # cycle += float(rows[idx+1][-1])
+        # cycle += max(float(rows[idx+4][-2]), float(rows[idx+2][-1]))
+        # cycle += max(float(rows[idx+5][-2]), float(rows[idx+3][-1]))
+        # cycle += max(float(rows[idx+6][-2]), float(rows[idx+4][-1]))
+        # cycle += max(float(rows[idx+7][-2]), float(rows[idx+8][-1]))
+        # cycle += max(float(rows[idx+8][-2]), float(rows[idx+9][-1]))
+        # cycle += float(rows[idx+10][-1])
+        # cycle += float(rows[idx+11][-1])
+        # cycle += float(rows[idx+12][-1])
+        cycle += float(rows[idx+4][-1])
+        cycle += float(rows[idx+3][-1])
+        cycle += max(float(rows[idx+8][-2]), float(rows[idx+2][-1]))
+        cycle += max(float(rows[idx+7][-2]), float(rows[idx+1][-1]))
+        cycle += max(float(rows[idx+6][-2]), float(rows[idx][-1]))
+        cycle += max(float(rows[idx+5][-2]), float(rows[idx+12][-1]))
+        cycle += max(float(rows[idx+4][-2]), float(rows[idx+11][-1]))
         cycle += float(rows[idx+10][-1])
-        cycle += float(rows[idx+11][-1])
-        cycle += float(rows[idx+12][-1])
+        cycle += float(rows[idx+9][-1])
+        cycle += float(rows[idx+8][-1])
       dp_b[idx_v+1][3] = cycle
       dp_s[idx_v+1][3] = cycle
       dp_ws[idx_v+1][3] = cycle
