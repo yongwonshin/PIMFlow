@@ -565,7 +565,7 @@ class Pipeline(TransformerBase):
         inputs.append(conv_bias_name)
 
       conv1_output = f"token_{gvn()}"
-      new_name = f'Conv_{gvn()}_{par_exec_id()}_{self.postfix(nodes, i, is_gpu_first)}'
+      new_name = f'Conv_{gvn()}_{par_exec_id(True)}_{self.postfix(nodes, i, is_gpu_first)}'
       conv1 = onnx.helper.make_node(
         'Conv',
         name=new_name,
@@ -603,7 +603,7 @@ class Pipeline(TransformerBase):
         inputs.append(conv_bias_name)
 
       conv2_output = f"token_{gvn()}"
-      new_name = f'Conv_{gvn()}_{par_exec_id(True)}_{self.postfix(nodes, i, is_gpu_first)}'
+      new_name = f'Conv_{gvn()}_{par_exec_id() - 1}_{self.postfix(nodes, i, is_gpu_first)}'
       conv2 = onnx.helper.make_node(
         'Conv',
         name=new_name,
@@ -812,7 +812,7 @@ class Pipeline(TransformerBase):
         inputs.append(conv_bias_name)
 
       conv1_output = f"token_{gvn()}"
-      new_name = f'Conv_{gvn()}_{par_exec_id()}_{self.postfix(nodes, i, is_gpu_first)}'
+      new_name = f'Conv_{gvn()}_{par_exec_id(True)}_{self.postfix(nodes, i, is_gpu_first)}'
       conv1 = onnx.helper.make_node(
         'Conv',
         name=new_name,
@@ -850,7 +850,7 @@ class Pipeline(TransformerBase):
         inputs.append(conv_bias_name)
 
       conv2_output = f"token_{gvn()}"
-      new_name = f'Conv_{gvn()}_{par_exec_id(True)}_{self.postfix(nodes, i, is_gpu_first)}'
+      new_name = f'Conv_{gvn()}_{par_exec_id() - 1}_{self.postfix(nodes, i, is_gpu_first)}'
       conv2 = onnx.helper.make_node(
         'Conv',
         name=new_name,
