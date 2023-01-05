@@ -111,13 +111,19 @@ if args.policy == "Pipeline" or args.policy =="PIMFlow":
     rows = list(pipeline1.values)
     row = list(rows[idx])
     if "pim" in row[0]:
-      cycle += float(rows[idx][-1])
-      cycle += max(float(rows[idx+1][-1]), float(rows[idx+1][-2]))
-      cycle += float(rows[idx+2][-2])
+      # cycle += float(rows[idx][-1])
+      # cycle += max(float(rows[idx+1][-1]), float(rows[idx+1][-2]))
+      # cycle += float(rows[idx+2][-2])
+      cycle += float(rows[idx+1][-1])
+      cycle += max(float(rows[idx+2][-2]), float(rows[idx][-1]))
+      cycle += float(rows[idx+1][-2])
       dp_b[idx_v+1][2] = cycle
       dp_s[idx_v+1][2] = cycle
       dp_ws[idx_v+1][2] = cycle
-      pipeline_cycles[idx_v+1][2] = ([float(rows[idx][-1]), max(float(rows[idx+1][-1]), float(rows[idx+1][-2])), float(rows[idx+2][-2])], 1)
+      pipeline_cycles[idx_v+1][2] = ([
+        float(rows[idx+1][-1]),
+        max(float(rows[idx+2][-2]), float(rows[idx][-1])),
+        float(rows[idx+1][-2])], 1)
       trace_name[idx_v+1][2] = str(rows[idx+2][0])
       pipeline_type[idx_v+1][2] = 1
       valids.add((idx_v+1, 2))
@@ -140,13 +146,19 @@ if args.policy == "Pipeline" or args.policy =="PIMFlow":
     rows = list(pipeline2.values)
     row = list(rows[idx])
     if "added" in row[0]:
-      cycle += float(rows[idx][-2])
-      cycle += max(float(rows[idx+1][-1]), float(rows[idx+1][-2]))
-      cycle += float(rows[idx+2][-1])
+      # cycle += float(rows[idx][-2])
+      # cycle += max(float(rows[idx+1][-1]), float(rows[idx+1][-2]))
+      # cycle += float(rows[idx+2][-1])
+      cycle += float(rows[idx+1][-2])
+      cycle += max(float(rows[idx][-2]), float(rows[idx+2][-1]))
+      cycle += float(rows[idx+1][-1])
       dp_b[idx_v+1][2] = cycle
       dp_s[idx_v+1][2] = cycle
       dp_ws[idx_v+1][2] = cycle
-      pipeline_cycles[idx_v+1][2] = ([float(rows[idx][-2]), max(float(rows[idx+1][-1]), float(rows[idx+1][-2])), float(rows[idx+2][-1])], 2)
+      pipeline_cycles[idx_v+1][2] = ([
+        float(rows[idx+1][-2]),
+        max(float(rows[idx][-2]), float(rows[idx+2][-1])),
+        float(rows[idx+1][-1])], 2)
       trace_name[idx_v+1][2] = str(rows[idx][0])
       pipeline_type[idx_v+1][2] = 2
       valids.add((idx_v+1, 2))
@@ -169,14 +181,22 @@ if args.policy == "Pipeline" or args.policy =="PIMFlow":
     rows = list(pipeline3.values)
     row = list(rows[idx])
     if "pim" in row[0]:
-      cycle += float(rows[idx][-1])
-      cycle += max(float(rows[idx+1][-1]), float(rows[idx+1][-2]))
-      cycle += max(float(rows[idx+2][-1]), float(rows[idx+2][-2]))
-      cycle += float(rows[idx+3][-1])
+      # cycle += float(rows[idx][-1])
+      # cycle += max(float(rows[idx+1][-1]), float(rows[idx+1][-2]))
+      # cycle += max(float(rows[idx+2][-1]), float(rows[idx+2][-2]))
+      # cycle += float(rows[idx+3][-1])
+      cycle += float(rows[idx+1][-1])
+      cycle += max(float(rows[idx+2][-2]), float(rows[idx][-1]))
+      cycle += max(float(rows[idx+1][-2]), float(rows[idx+3][-1]))
+      cycle += float(rows[idx+2][-1])
       dp_b[idx_v+1][3] = cycle
       dp_s[idx_v+1][3] = cycle
       dp_ws[idx_v+1][3] = cycle
-      pipeline_cycles[idx_v+1][3] = ([float(rows[idx][-1]), max(float(rows[idx+1][-1]), float(rows[idx+1][-2])), max(float(rows[idx+2][-1]), float(rows[idx+2][-2])), float(rows[idx+3][-1])], 3)
+      pipeline_cycles[idx_v+1][3] = ([
+        float(rows[idx+1][-1]),
+        max(float(rows[idx+2][-2]), float(rows[idx][-1])),
+        max(float(rows[idx+1][-2]), float(rows[idx+3][-1])),
+        float(rows[idx+2][-1])], 3)
       trace_name[idx_v+1][3] = str(rows[idx+2][0])
       pipeline_type[idx_v+1][3] = 3
       valids.add((idx_v+1, 3))
