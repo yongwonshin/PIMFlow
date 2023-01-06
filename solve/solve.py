@@ -286,6 +286,12 @@ for p in worst_pipelines:
   i, l = p
   b = [dp_ws[i+j][1] for j in range(l)]
 
+# print(f"=== N_CHANNEL: {args.n_channel}, N_GWRITE: {args.n_gwrite}, ramulator_disable_gwrite_latency_hiding: {args.ramulator_disable_gwrite_latency_hiding} ===")
+# print(f"newton++ (vs baseline): {round(baseline_cycle / newton_cycle, 3)} ({newton_cycle - baseline_cycle})")
+# print(f"pipeline (vs baseline): {round(baseline_cycle / dp_b[1][N], 3)} ({dp_b[1][N] - baseline_cycle})")
+# print(f"split (vs baseline): {round(baseline_cycle / split_cycle, 3)} ({split_cycle - baseline_cycle})")
+# print(f"all (vs baseline): {round(baseline_cycle / dp_s[1][N], 3)} ({dp_s[1][N] - baseline_cycle})")
+# print("====================\n")
 
 # final
 
@@ -346,8 +352,6 @@ for i, k in enumerate(optimal_name):
           optimal_name[i].append(pipeline1_onnx[j-1][0])
           os.system(f'cp -r /root/PIMFlow/pipeline/result_simulate/{args.model}/{k[2]}_16/traces-{k[3]} /root/PIMFlow/{args.model}/{args.policy}/{args.n_gwrite}/trace-{k[0]}_2')
           os.system(f'cp -r /root/PIMFlow/pipeline/result_simulate/{args.model}/{k[2]}_16/traces-{k[4]} /root/PIMFlow/{args.model}/{args.policy}/{args.n_gwrite}/trace-{k[0]}_1')
-          optimal_name[i][3] = f'trace-{k[0]}_1'
-          optimal_name[i][4] = f'trace-{k[0]}_2'
           optimal_name[i][3] = f'trace-{k[0]}_1'
           optimal_name[i][4] = f'trace-{k[0]}_2'
           optimal_name[i].insert(0,optimal_name[i-1][0])
