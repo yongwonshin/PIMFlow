@@ -279,7 +279,10 @@ for p in worst_pipelines:
 for p in pipelines:
   i, l = p
   b = [dp_s[i+j][1] for j in range(l)]
-  optimal_name[i] = [optimal_name[i][0],"pipeline",pipeline_type[i][l],trace_name[i][l]]
+  if pipeline_type[i][l] == 2:
+    optimal_name[i-1] = [optimal_name[i-1][0],"pipeline",pipeline_type[i][l],trace_name[i][l]]
+  else:
+    optimal_name[i] = [optimal_name[i][0],"pipeline",pipeline_type[i][l],trace_name[i][l]]
 
 
 for p in worst_pipelines:
