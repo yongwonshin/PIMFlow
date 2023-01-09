@@ -439,7 +439,7 @@ for l in range(1, N+1):
       if i + k > N:
         continue
       if l == 2 or l == 3:
-        if dp_s[i][l] < dp_s[i][k] + dp_s[i+k][l-k] - 1:
+        if dp_s[i][l] < dp_s[i][k] + dp_s[i+k][l-k] - 10:
           if (i, k) in pipelines:
             pipelines.remove((i, k))
             eaten += 1
@@ -448,7 +448,7 @@ for l in range(1, N+1):
             eaten += 1
           if (i, l) in valids:
             pipelines.add((i, l))
-        if dp_ws[i][l] > dp_ws[i][k] + dp_ws[i+k][l-k] + 1:
+        if dp_ws[i][l] > dp_ws[i][k] + dp_ws[i+k][l-k] + 10:
           if (i, k) in worst_pipelines:
             worst_pipelines.remove((i, k))
             eaten += 1

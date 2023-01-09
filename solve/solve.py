@@ -218,7 +218,7 @@ for l in range(1, N+1):
       if i + k > N:
         continue
       if l == 2 or l == 3:
-        if dp_s[i][l] < dp_s[i][k] + dp_s[i+k][l-k] - 1:
+        if dp_s[i][l] < dp_s[i][k] + dp_s[i+k][l-k] - 10:
           if (i, k) in pipelines:
             pipelines.remove((i, k))
             eaten += 1
@@ -227,7 +227,7 @@ for l in range(1, N+1):
             eaten += 1
           if (i, l) in valids:
             pipelines.add((i, l))
-        if dp_ws[i][l] > dp_ws[i][k] + dp_ws[i+k][l-k] + 1:
+        if dp_ws[i][l] > dp_ws[i][k] + dp_ws[i+k][l-k] + 10:
           if (i, k) in worst_pipelines:
             worst_pipelines.remove((i, k))
             eaten += 1
@@ -308,9 +308,9 @@ for i, k in enumerate(optimal_name):
       optimal_name[i-1][2] = 1
       optimal_name[i-1][3] = "pim"
     elif k[2] == 2:
-      optimal_name[i-1][1] = "pipeline"
-      optimal_name[i-1][2] = 2
-      optimal_name[i-1][3] = "pim"
+      optimal_name[i+1][1] = "pipeline"
+      optimal_name[i+1][2] = 2
+      optimal_name[i+1][3] = "pim"
     elif k[2] == 3:
       optimal_name[i-1][1] = "pipeline"
       optimal_name[i-1][2] = 3
@@ -363,7 +363,7 @@ for i, k in enumerate(optimal_name):
           os.system(f'cp -r /root/PIMFlow/pipeline/result_simulate/{args.model}/{k[2]}_16/traces-{k[4]} /root/PIMFlow/{args.model}/{args.policy}/{args.n_gwrite}/trace-{k[0]}_2')
           optimal_name[i][3] = f'trace-{k[0]}_1'
           optimal_name[i][4] = f'trace-{k[0]}_2'
-          optimal_name[i].insert(0,optimal_name[i-1][0])
+          optimal_name[i].insert(1,optimal_name[i+1][0])
     elif k[2] == 3:
       for j, row in enumerate(pipeline3_onnx):
         if row[0]== k[3]:
