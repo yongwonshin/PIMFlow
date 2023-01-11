@@ -287,9 +287,9 @@ def pipeline_1x1_dw(graph, node, layers):
       # elif attributes['group'] == 32:
       #   layers.append({'nodes': [node.name, next_node.name], 'is_gpu_first': False})
       # # resnet (and others; actually all convolutions)
-      else:
-        if args.model in ["resnet-50"]:
-          layers.append({'nodes': [node.name, next_node.name], 'is_gpu_first': False})
+      # else:
+      #   if args.model in ["resnet-50"]:
+      #     layers.append({'nodes': [node.name, next_node.name], 'is_gpu_first': False})
 
 def pipeline_dw_1x1(graph, node, layers):
   skipped_nodes = skip_activation(graph, node)
@@ -304,9 +304,9 @@ def pipeline_dw_1x1(graph, node, layers):
       if weight_shape[2] == 1 and weight_shape[3] == 1:
         layers.append({'nodes': [node.name, next_node.name], 'is_gpu_first': True})
       # resnet (and others; actually all convolutions)
-      else:
-        if args.model in ["resnet-50"]:
-          layers.append({'nodes': [node.name, next_node.name], 'is_gpu_first': True})
+      # else:
+      #   if args.model in ["resnet-50"]:
+      #     layers.append({'nodes': [node.name, next_node.name], 'is_gpu_first': True})
 
 graph = onnx_model.graph
 

@@ -97,6 +97,10 @@ idx_v = 0
 while True:
   if args.pipeline not in ["1", "all"] or pipeline1 is None:
     break
+
+  if idx_v >= N:
+    break
+
   cycle = 0
   rows = list(pipeline1.values)
   row = list(rows[idx])
@@ -182,15 +186,16 @@ while True:
   idx += 1
   idx_v += 1
 
-  if idx_v >= N:
-    break
-
 # table for storing minimum runtime from jth node for 'i' number of nodes
 idx = 0
 idx_v = 0
 while True:
   if args.pipeline not in ["2", "all"] or pipeline2 is None:
     break
+
+  if idx_v >= N:
+    break
+
   cycle = 0
   rows = list(pipeline2.values)
   row = list(rows[idx])
@@ -276,15 +281,16 @@ while True:
   idx += 1
   idx_v += 1
 
-  if idx_v >= N:
-    break
-
 # table for storing minimum runtime from jth node for 'i' number of nodes
 idx = 0
 idx_v = 0
 while True:
   if args.pipeline not in ["3", "all"] or pipeline3 is None:
     break
+
+  if idx_v >= N:
+    break
+
   cycle = 0
   rows = list(pipeline3.values)
   row = list(rows[idx])
@@ -426,9 +432,6 @@ while True:
 
   idx += 1
   idx_v += 1
-
-  if idx_v >= N:
-    break
 
 
 # solve
