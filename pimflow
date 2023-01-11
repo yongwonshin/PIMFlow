@@ -177,7 +177,7 @@ def stat(args, gpu_only=False):
     i += 1
     if not found:
       break
-  print(other_cycle, par_cycle)
+  # print(other_cycle, par_cycle)
   return other_cycle + par_cycle
 
 def extract_profiled_trace(model: str):
