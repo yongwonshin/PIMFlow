@@ -45,3 +45,5 @@ tar -xzf ./data/traces-mobilenet-v2-16-Newton++.tar.gz -C .
 tar -xzf ./data/traces-mobilenet-v2-16-Pipeline.tar.gz -C .
 tar -xzf ./data/traces-mobilenet-v2-16-MDDP.tar.gz -C .
 tar -xzf ./data/traces-mobilenet-v2-16-PIMFlow.tar.gz -C .
+
+tar -xzf ./data/mobilenet-v2-csv.tar.gz -C ../
