@@ -91,16 +91,25 @@ cd "$RAM_DIR"
 # Generate binary file: $RAM_DIR/ramulator
 make -j
 cd "$HOME"
-git clone https://github.com/yongwonshin/PIMFlow.git
+git clone -b https://github.com/yongwonshin/PIMFlow.git
 PIMFLOW_DIR="$HOME/PIMFlow"
 cd "$PIMFLOW_DIR"
 pip install -e .
 cd "$PIMFLOW_DIR/pim"
 # Generate binary file: $PIMFLOW_DIR/pim/pim_codegen
 make -j
-# Extract mobilenet trace
+# Extract network traces
 cd "$PIMFLOW_DIR"
 tar -xzf ./data/mobilenet-v2.tar.gz -C .
+
+tar -xzf ./data/traces-mobilenet-v2-16-org.tar.gz -C .
+tar -xzf ./data/traces-mobilenet-v2-16-Newton+.tar.gz -C .
+tar -xzf ./data/traces-mobilenet-v2-16-Newton++.tar.gz -C .
+tar -xzf ./data/traces-mobilenet-v2-16-Pipeline.tar.gz -C .
+tar -xzf ./data/traces-mobilenet-v2-16-MDDP.tar.gz -C .
+tar -xzf ./data/traces-mobilenet-v2-16-PIMFlow.tar.gz -C .
+
+tar -xzf ./data/mobilenet-v2-csv.tar.gz -C ../
 ```
 
 Now, the directory should look like this:
@@ -108,7 +117,6 @@ Now, the directory should look like this:
 . ($HOME)
 ./PIMFlow
 ./PIMFlow_tvm
-./PIMFlow_gpgpu_sim_distribution
 ./PIMFlow_accel-sim-framework
 ./PIMFlow_ramulator
 ```
@@ -133,29 +141,32 @@ Or, you can just use the profiled data we've prepared in PIMFlow/mobilenet-v2/ f
 
 Now, you can get the optimal solution using profiled data and get the speedup:
 ```bash
-./pimflow -m=solve -n=mobilenet-v2
 ./pimflow -m=stat --conv_only -n=mobilenet-v2
 ```
 The output should look like this:
 ```text
-newton++ (vs baseline): 1.39 (-412549.3529238198)
-pipeline (vs baseline): 1.457 (-461786.4352791244)
-split (vs baseline): 1.461 (-464203.9705751848)
-all (vs baseline): 1.515 (-500322.43528344436)
+=== N_CHANNEL: 16, N_GWRITE: 4, ramulator_disable_gwrite_latency_hiding: False ===
+newton++ (vs baseline): 1.365 (-388549.76000000024)
+pipeline (vs baseline): 1.413 (-425128.2000000004)
+split (vs baseline): 1.436 (-441899.4400000004)
+all (vs baseline): 1.481 (-472070.72000000044)
+====================
 ```
 
 Next, you can get speedup by the following commands:
 Note: it takes about 8 hours in our system.
+*policy* option is either *Newton+*, *Newton++*, *Pipeline*, *MDDP*, or *PIMFlow*.
 ```bash
+./pimflow -m=solve -n=mobilenet-v2
 ./pimflow -m=run --gpu_only -n=mobilenet-v2 # get gpu-only execution time
 ./pimflow -m=run -n=mobilenet-v2 # get pimflow execution time
-./pimflow -m=stat -n=mobilenet-v2 # show end-to-end speedup
+./pimflow -m=stat -n=mobilenet-v2 --policy=PIMFlow # show end-to-end speedup
 ```
 Output:
 ```text
-GPU CYCLE: 4390335
-PIMFLOW CYCLE: 3122474.405912899
-PIMFLOW SPEEDUP: 1.41
+GPU CYCLE: 1445620
+PIMFlow CYCLE: 1047831.4000000001
+PIMFlow SPEEDUP: 1.38
 ```
 
 You can replace "mobilenet-v2" with "efficientnet-v1-b0", "mnasnet-1.0", "resnet-50" or "vgg-16" for various network testing.
