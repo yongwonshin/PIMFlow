@@ -28,8 +28,7 @@ cd "$RAM_DIR"
 # Generate binary file: $RAM_DIR/ramulator
 make -j
 cd "$HOME"
-git clone https://github.com/yongwonshin/PIMFlow.git
-git checkout v0.3
+git clone -b https://github.com/yongwonshin/PIMFlow.git
 PIMFLOW_DIR="$HOME/PIMFlow"
 cd "$PIMFLOW_DIR"
 pip install -e .
