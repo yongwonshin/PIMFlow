@@ -4,6 +4,9 @@ import os
 import csv
 import argparse
 from pim.util import MODEL_LIST
+import matplotlib.pyplot as plt
+import numpy as np
+
 class Range(object):
   def __init__(self, start, end):
     self.start = start
@@ -513,8 +516,34 @@ for p in worst_pipelines:
   b = [dp_ws[i+j][1] for j in range(l)]
 
 print(f"=== N_CHANNEL: {args.n_channel}, N_GWRITE: {args.n_gwrite}, ramulator_disable_gwrite_latency_hiding: {args.ramulator_disable_gwrite_latency_hiding} ===")
-print(f"newton++ (vs baseline): {round(baseline_cycle / newton_cycle, 3)} ({newton_cycle - baseline_cycle})")
-print(f"pipeline (vs baseline): {round(baseline_cycle / dp_b[1][N], 3)} ({dp_b[1][N] - baseline_cycle})")
-print(f"split (vs baseline): {round(baseline_cycle / split_cycle, 3)} ({split_cycle - baseline_cycle})")
-print(f"all (vs baseline): {round(baseline_cycle / dp_s[1][N], 3)} ({dp_s[1][N] - baseline_cycle})")
+print(f"Newton++ (vs baseline): {round(baseline_cycle / newton_cycle, 3)} ({newton_cycle - baseline_cycle})")
+print(f"Pipeline (vs baseline): {round(baseline_cycle / dp_b[1][N], 3)} ({dp_b[1][N] - baseline_cycle})")
+print(f"MD-DP (vs baseline): {round(baseline_cycle / split_cycle, 3)} ({split_cycle - baseline_cycle})")
+print(f"PIMFlow (vs baseline): {round(baseline_cycle / dp_s[1][N], 3)} ({dp_s[1][N] - baseline_cycle})")
 print("====================\n")
+
+
+plot_graph = np.arange(4)
+years = ['Newton++', 'Pipeline', 'MD-DP','PIMFlow']
+values = [round(baseline_cycle / newton_cycle, 3), round(baseline_cycle / dp_b[1][N], 3), round(baseline_cycle / split_cycle, 3),round(baseline_cycle / dp_s[1][N], 3)]
+
+plt.figure().set_figwidth(16)
+
+bar = plt.bar(plot_graph, values , color = ['r', 'g', 'b', 'y'], alpha = 0.6, width = 0.5)
+plt.xticks(plot_graph, years)
+plt.tick_params(axis='both', which='major', labelsize=21)
+
+
+
+for rect in bar:
+    height = rect.get_height()
+    plt.text(rect.get_x() + rect.get_width()/2.0, height, '%.3f' % height, ha='center', va='bottom', size = 18)
+
+plt.ylim(0.5)
+plt.title(f"{args.model}_{args.n_channel}",fontsize=21)
+plt.xlabel('Normalized to GPU baseline',fontsize=21)
+plt.ylabel('Speedup',fontsize=21)
+
+
+
+plt.savefig(f"{args.model}_{args.n_channel}", bbox_inches = 'tight')
