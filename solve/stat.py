@@ -546,4 +546,4 @@ plt.ylabel('Speedup',fontsize=21)
 
 
 
-plt.savefig(f"{args.model}_{args.n_channel}", bbox_inches = 'tight')
+plt.savefig(f"../{args.model}_{args.n_channel}", bbox_inches = 'tight')
