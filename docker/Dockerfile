@@ -47,7 +47,8 @@ RUN apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/cuda/
                  pandas \
                  decorator \
                  attrs \
-                 scipy && \
+                 scipy \
+                 matplotlib && \
     aria2c -q -d /tmp -o cmake-3.21.0-linux-x86_64.tar.gz \
            https://github.com/Kitware/CMake/releases/download/v3.21.0/cmake-3.21.0-linux-x86_64.tar.gz && \
     tar -zxf /tmp/cmake-3.21.0-linux-x86_64.tar.gz --strip=1 -C /usr && \
