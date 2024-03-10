@@ -1,5 +1,11 @@
 # PIMFlow
 
+## File Storage Update
+Initially, the files were uploaded to GitHub using [Git Large File Storage (LFS)](https://git-lfs.github.com/), but due to potential recurrent billing issues, they have been removed. 
+
+You can now find the files archived as `data.zip` on [Zenodo](https://zenodo.org/doi/10.5281/zenodo.7376801). This ensures that the data remains accessible without incurring additional costs.
+
+
 ## Pre-requisites
 ### Hardware dependencies
 We've tested codes on NVIDIA GeForce RTX 2080 Ti GPU in Ubuntu 20.04 amd64 system. GPU should have Turing architecture.
